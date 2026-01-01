@@ -58,6 +58,10 @@ mod mobiles;
 use mobiles::ios::badge::{request_ios_badge_authorization, set_ios_badge};
 #[cfg(mobile)]
 use mobiles::splash;
+#[cfg(target_os = "android")]
+use mobiles::keep_alive;
+#[cfg(mobile)]
+use mobiles::notification;
 
 #[derive(Debug)]
 pub struct AppData {
@@ -325,7 +329,16 @@ fn setup_mobile() {
                     tracing::warn!("Mobile home webview window not found during setup");
                 }
             }
-            common_setup(app_handle)?;
+            common_setup(app_handle.clone())?;
+            #[cfg(target_os = "android")]
+            {
+                // 启动保活服务
+                if let Err(e) = keep_alive::start_keep_alive(app_handle.clone()) {
+                    tracing::warn!("Failed to start keep alive service: {}", e);
+                } else {
+                    tracing::info!("Keep alive service started successfully");
+                }
+            }
             tracing::info!("Mobile application setup completed successfully");
             Ok(())
         })
@@ -394,6 +407,8 @@ fn get_invoke_handlers() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
     use crate::mobiles::keyboard::set_webview_keyboard_adjustment;
     #[cfg(mobile)]
     use crate::mobiles::splash::hide_splash_screen;
+    #[cfg(target_os = "android")]
+    use crate::mobiles::keep_alive::{start_keep_alive_service, stop_keep_alive_service};
     use crate::websocket::commands::{
         ws_disconnect, ws_force_reconnect, ws_get_app_background_state, ws_get_health,
         ws_get_state, ws_init_connection, ws_is_connected, ws_send_message,
@@ -492,6 +507,12 @@ fn get_invoke_handlers() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         request_ios_badge_authorization,
         #[cfg(target_os = "ios")]
         set_webview_keyboard_adjustment,
+        #[cfg(target_os = "android")]
+        start_keep_alive_service,
+        #[cfg(target_os = "android")]
+        stop_keep_alive_service,
+        #[cfg(mobile)]
+        show_message_notification_command,
         is_app_state_ready,
     ]
 }

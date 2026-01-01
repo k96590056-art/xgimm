@@ -18,6 +18,9 @@
     "targets": "all",
     "iOS": {
       "minimumSystemVersion": "13.0"
+    },
+    "android": {
+      "package": "com.xgimm.www"
     }
   },
   "app": {
@@ -35,3 +38,4 @@
     }
   }
 }
+
