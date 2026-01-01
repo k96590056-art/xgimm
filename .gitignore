@@ -1,0 +1,51 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+target/
+*.jar
+!**/wrapper/*.jar
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env.local
+.env.*.local
+
+# Temp files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Archives in HuLa-Admin
+HuLa-Admin/*.tar.gz
+
+# Tauri build outputs
+HuLa/src-tauri/target/
+HuLa/src-tauri/gen/
+
+# Flutter
+HuLa-Flutter/.dart_tool/
+HuLa-Flutter/build/
+
+# Server target
+HuLa-Server/**/target/
+
+# Windows reserved names
+nul
+NUL
