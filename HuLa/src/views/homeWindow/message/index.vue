@@ -153,7 +153,7 @@
     <!-- 没有数据显示的提示 -->
     <n-result v-else class="absolute-center" status="418" :description="t('message.message_list.empty_description')">
       <template #footer>
-        <n-button secondary type="primary">{{ t('message.message_list.empty_action') }}</n-button>
+        <n-button secondary type="primary" @click="handleFindFriendClick">{{ t('message.message_list.empty_action') }}</n-button>
       </template>
     </n-result>
   </n-scrollbar>
@@ -173,12 +173,14 @@ import { useGroupStore } from '@/stores/group.ts'
 import { useSettingStore } from '@/stores/setting'
 import { useBotStore } from '@/stores/bot'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { useWindow } from '@/hooks/useWindow'
 import { AvatarUtils } from '@/utils/AvatarUtils'
 import { formatTimestamp } from '@/utils/ComputedTime.ts'
 import { markMsgRead } from '@/utils/ImRequestUtils'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const { createWebviewWindow } = useWindow()
 const route = useRoute()
 const appWindow = WebviewWindow.getCurrent()
 const chatStore = useChatStore()
@@ -386,6 +388,11 @@ watch(
 // 处理右键菜单显示状态变化
 const handleMenuShow = (roomId: string, isShow: boolean) => {
   activeContextMenuRoomId.value = isShow ? roomId : null
+}
+
+// 处理寻找好友按钮点击
+const handleFindFriendClick = async () => {
+  await createWebviewWindow(t('home.action.add_friend_or_group'), 'searchFriend', 500, 580)
 }
 
 // 判断对应样式

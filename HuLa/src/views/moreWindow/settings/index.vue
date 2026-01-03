@@ -22,13 +22,7 @@
 
       <div class="absolute bottom-20px left-60px select-none cursor-default flex items-center gap-10px">
         <p class="text-(12px #666)">{{ t('setting.common.provider_label') }}:</p>
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://github.com/HuLaSpark/HuLa"
-          class="text-(12px #13987f) cursor-pointer no-underline">
-          {{ t('setting.common.provider_name') }}
-        </a>
+        <span class="text-(12px #13987f)">{{ t('setting.common.provider_name') }}</span>
       </div>
     </section>
 

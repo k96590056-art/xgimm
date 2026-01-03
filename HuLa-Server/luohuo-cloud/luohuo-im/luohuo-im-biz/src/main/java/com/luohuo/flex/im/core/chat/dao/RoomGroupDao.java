@@ -6,6 +6,9 @@ import com.luohuo.flex.im.core.chat.mapper.RoomGroupMapper;
 import com.luohuo.flex.im.domain.vo.response.GroupResp;
 import org.springframework.stereotype.Service;
 
+import cn.hutool.core.collection.CollectionUtil;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,6 +23,9 @@ import java.util.stream.Collectors;
 public class RoomGroupDao extends ServiceImpl<RoomGroupMapper, RoomGroup> {
 
     public List<RoomGroup> listByRoomIds(List<Long> roomIds) {
+        if (CollectionUtil.isEmpty(roomIds)) {
+            return Collections.emptyList();
+        }
         return lambdaQuery()
                 .in(RoomGroup::getRoomId, roomIds)
                 .list();
@@ -52,6 +58,9 @@ public class RoomGroupDao extends ServiceImpl<RoomGroupMapper, RoomGroup> {
 	}
 
 	public List<Long> getRoomIdByGroupId(List<Long> groupIds) {
+		if (CollectionUtil.isEmpty(groupIds)) {
+			return Collections.emptyList();
+		}
 		return lambdaQuery()
 				.in(RoomGroup::getId, groupIds)
 				.list().stream().map(RoomGroup::getRoomId).collect(Collectors.toList());

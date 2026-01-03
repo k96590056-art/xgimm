@@ -122,6 +122,18 @@ export const useContactStore = defineStore(StoresEnum.CONTACTS, () => {
   }
 
   /**
+   * 更新联系人状态
+   * @param uid 用户ID
+   * @param updates 要更新的字段
+   */
+  const updateContactStatus = (uid: string, updates: Partial<FriendItem>) => {
+    const contact = contactsList.value.find((item) => item.uid === uid)
+    if (contact) {
+      Object.assign(contact, updates)
+    }
+  }
+
+  /**
    * 处理好友/群申请
    * @param apply 好友申请信息
    * @param state 处理状态 0拒绝 2同意 3忽略
@@ -212,6 +224,7 @@ export const useContactStore = defineStore(StoresEnum.CONTACTS, () => {
     applyPageOptions,
     onDeleteFriend,
     onHandleInvite,
-    deleteContact
+    deleteContact,
+    updateContactStatus
   }
 })

@@ -122,8 +122,8 @@
         </p>
       </div>
 
-      <!-- (独立)菜单选项 -->
-      <div
+      <!-- (独立)菜单选项 - 已隐藏 -->
+      <!-- <div
         :class="showMode === ShowModeEnum.ICON ? 'top-action p-[6px_8px]' : 'top-action w-46px py-4px flex-col-center'">
         <n-popover
           style="padding: 8px; margin-left: 4px; background: var(--bg-setting-item)"
@@ -155,12 +155,11 @@
             <svg class="size-16px">
               <use href="#settings"></use>
             </svg>
-            <!-- <span class="select-none">插件管理</span> -->
             {{ t('home.action.plugin_manage') }}
           </n-flex>
         </n-popover>
         <p v-if="showMode === ShowModeEnum.TEXT" class="text-(10px center)">{{ t('home.action.plugin') }}</p>
-      </div>
+      </div> -->
     </header>
 
     <!-- 下部分操作栏 -->
@@ -278,7 +277,10 @@ const pluginsStore = usePluginsStore()
 const feedStore = useFeedStore()
 const { showMode } = storeToRefs(useSettingStore())
 const { menuTop } = storeToRefs(useMenuTopStore())
-const itemsBottom = useItemsBottom()
+const itemsBottomRaw = useItemsBottom()
+// 需要隐藏的底部按钮列表
+const hiddenBottomUrls = ['mail'] // 收藏按钮
+const itemsBottom = computed(() => itemsBottomRaw.value.filter((i) => !hiddenBottomUrls.includes(i.url)))
 const { plugins } = storeToRefs(pluginsStore)
 const { unreadCount: feedUnreadCount } = storeToRefs(feedStore)
 const { t } = useI18n()
@@ -289,9 +291,11 @@ const unreadReady = computed(() => globalStore.unreadReady)
 //const { } = toRefs(getCurrentInstance) // 所有菜单的外层div
 const menuShow = ref(false)
 const moreList = useMoreList()
-// 显示在菜单的插件
+// 需要隐藏的插件列表
+const hiddenPluginUrls = ['robot'] // ChatBot 插件
+// 显示在菜单的插件（排除隐藏的插件）
 const activePlugins = computed(() => {
-  return plugins.value.filter((i) => i.isAdd)
+  return plugins.value.filter((i) => i.isAdd && !hiddenPluginUrls.includes(i.url))
 })
 // 显示在菜单外的插件
 const noMiniShowPlugins = computed(() => {

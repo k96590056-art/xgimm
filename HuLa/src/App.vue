@@ -336,7 +336,7 @@ useMitt.on(WsResponseMessageType.INVALID_USER, (param: { uid: string }) => {
 })
 
 useMitt.on(WsResponseMessageType.ONLINE, async (onStatusChangeType: OnStatusChangeType) => {
-  console.log('收到用户上线通知')
+  console.log('收到用户上线通知', onStatusChangeType)
   // 群聊
   if (onStatusChangeType.type === 1) {
     groupStore.updateOnlineNum({
@@ -352,6 +352,13 @@ useMitt.on(WsResponseMessageType.ONLINE, async (onStatusChangeType: OnStatusChan
       },
       onStatusChangeType.roomId
     )
+  }
+  // 好友
+  if (onStatusChangeType.type === 2) {
+    contactStore.updateContactStatus(onStatusChangeType.uid, {
+      activeStatus: OnlineEnum.ONLINE,
+      lastOptTime: onStatusChangeType.lastOptTime
+    })
   }
 })
 
@@ -489,6 +496,13 @@ useMitt.on(WsResponseMessageType.OFFLINE, async (onStatusChangeType: OnStatusCha
       },
       onStatusChangeType.roomId
     )
+  }
+  // 好友
+  if (onStatusChangeType.type === 2) {
+    contactStore.updateContactStatus(onStatusChangeType.uid, {
+      activeStatus: OnlineEnum.OFFLINE,
+      lastOptTime: onStatusChangeType.lastOptTime
+    })
   }
 })
 

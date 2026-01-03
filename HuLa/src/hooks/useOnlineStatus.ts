@@ -27,7 +27,17 @@ export const useOnlineStatus = (uid?: ComputedRef<string | undefined> | Ref<stri
     ? computed(() => currentUser.value?.userStateId)
     : computed(() => userStore.userInfo?.userStateId)
 
-  const activeStatus = computed(() => currentUser.value?.activeStatus ?? OnlineEnum.OFFLINE)
+  // 当前登录用户默认在线（因为已登录），其他用户从数据中获取状态
+  const activeStatus = computed(() => {
+    if (currentUser.value?.activeStatus !== undefined) {
+      return currentUser.value.activeStatus
+    }
+    // 如果没有传入uid，说明是当前登录用户，已登录则默认在线
+    if (!uid && userStore.userInfo?.uid) {
+      return OnlineEnum.ONLINE
+    }
+    return OnlineEnum.OFFLINE
+  })
 
   const hasCustomState = computed(() => {
     const stateId = userStateId.value

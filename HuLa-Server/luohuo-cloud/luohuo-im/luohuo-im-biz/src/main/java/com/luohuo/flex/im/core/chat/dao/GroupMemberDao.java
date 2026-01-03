@@ -237,6 +237,10 @@ public class GroupMemberDao extends ServiceImpl<GroupMemberMapper, GroupMember> 
 	}
 
 	public List<GroupMember> getGroupMemberByGroupIdListAndUid(Long uid, Set<Long> groupIdList) {
+		// 如果群组ID列表为空，直接返回空列表，避免 IN () 语法错误
+		if (CollectionUtil.isEmpty(groupIdList)) {
+			return java.util.Collections.emptyList();
+		}
 		QueryWrapper<GroupMember> wrapper = new QueryWrapper<>();
 		wrapper.in("group_id", groupIdList).eq("uid", uid);
 		return baseMapper.selectList(wrapper);

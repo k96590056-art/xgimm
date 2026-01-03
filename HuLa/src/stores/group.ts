@@ -497,6 +497,13 @@ export const useGroupStore = defineStore(
         return []
       }
 
+      // 检查房间类型，只有群聊才能获取成员列表
+      const session = chatStore.sessionList.find((s) => s.roomId === roomId)
+      if (session && session.type !== RoomTypeEnum.GROUP) {
+        // 私聊房间不需要获取群成员列表
+        return []
+      }
+
       const cachedList = userListMap[roomId]
 
       if (!forceRefresh && Array.isArray(cachedList) && cachedList.length > 0) {

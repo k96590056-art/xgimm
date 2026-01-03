@@ -39,6 +39,9 @@ public class ContactDao extends ServiceImpl<ContactMapper, Contact> {
     }
 
 	public List<Contact> get(Long uid, List<Long> roomIdList) {
+		if (CollectionUtil.isEmpty(roomIdList)) {
+			return java.util.Collections.emptyList();
+		}
 		return lambdaQuery()
 				.eq(Contact::getUid, uid)
 				.in(Contact::getRoomId, roomIdList)

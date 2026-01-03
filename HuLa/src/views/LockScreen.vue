@@ -19,8 +19,8 @@
 
           <n-flex vertical justify="center" align="center" :size="20" class="tips">
             <svg><use href="#search"></use></svg>
-            <p class="text-(16px [--chat-text-color]) text-center leading-24px">
-              {{ t('message.lock_screen.tip_description') }}
+            <p class="text-(32px [--chat-text-color]) text-center font-bold">
+              XG-IM
             </p>
           </n-flex>
         </n-flex>

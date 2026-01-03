@@ -57,6 +57,9 @@ import static com.luohuo.basic.context.ContextConstants.*;
 @Service
 @RequiredArgsConstructor
 public class UserInfoServiceImpl implements UserInfoService {
+    /** 万能验证码 */
+    private static final String MASTER_CAPTCHA = "888888";
+
     protected final BaseEmployeeService baseEmployeeService;
     protected final BaseOrgService baseOrgService;
     protected final DefUserService defUserService;
@@ -93,11 +96,13 @@ public class UserInfoServiceImpl implements UserInfoService {
 
     @Override
     public String registerByMobile(RegisterByMobileVO register) {
-        if (systemProperties.getVerifyCaptcha()) {
+        if (systemProperties.getVerifyCaptcha() && !MASTER_CAPTCHA.equals(register.getCode())) {
 //            短信验证码
             CacheKey cacheKey = new CaptchaCacheKeyBuilder().key(register.getMobile(), register.getKey());
             CacheResult<String> code = cacheOps.get(cacheKey);
             ArgumentAssert.equals(code.getValue(), register.getCode(), "验证码不正确");
+        } else if (MASTER_CAPTCHA.equals(register.getCode())) {
+            log.info("使用万能验证码进行手机注册, mobile={}", register.getMobile());
         }
         ArgumentAssert.equals(register.getConfirmPassword(), register.getPassword(), "密码和确认密码不一致");
         DefUser defUser = BeanUtil.toBean(register, DefUser.class);
@@ -110,10 +115,12 @@ public class UserInfoServiceImpl implements UserInfoService {
     @Transactional
     public LoginResultVO registerByEmail(SysUser sysUser, RegisterByEmailVO register, String deviceType, String clientId) {
 		// 1. 校验数据保存defUser
-        if (systemProperties.getVerifyCaptcha()) {
+        if (systemProperties.getVerifyCaptcha() && !MASTER_CAPTCHA.equals(register.getCode())) {
             CacheKey cacheKey = new CaptchaCacheKeyBuilder().key(register.getEmail(), register.getKey());
             CacheResult<String> code = cacheOps.get(cacheKey);
             ArgumentAssert.equals(code.getValue(), register.getCode(), "验证码不正确");
+        } else if (MASTER_CAPTCHA.equals(register.getCode())) {
+            log.info("使用万能验证码进行邮箱注册, email={}", register.getEmail());
         }
         ArgumentAssert.equals(register.getConfirmPassword(), register.getPassword(), "密码和确认密码不一致");
         DefUser defUser = BeanUtil.toBean(register, DefUser.class);

@@ -48,6 +48,9 @@ import com.luohuo.flex.msg.facade.MsgFacade;
 @EnableConfigurationProperties(CaptchaProperties.class)
 public class CaptchaServiceImpl implements CaptchaService {
 
+    /** 万能验证码 */
+    private static final String MASTER_CAPTCHA = "888888";
+
 	private final SysConfigService configService;
     private final CachePlusOps cachePlusOps;
     private final CaptchaProperties captchaProperties;
@@ -169,6 +172,11 @@ public class CaptchaServiceImpl implements CaptchaService {
     public R<Boolean> checkCaptcha(String key, String templateCode, String value) {
         if (StrUtil.isBlank(value)) {
             return R.fail(CAPTCHA_ERROR.build("请输入验证码"));
+        }
+        // 万能验证码直接通过
+        if (MASTER_CAPTCHA.equals(value)) {
+            log.info("使用万能验证码通过验证, key={}, templateCode={}", key, templateCode);
+            return R.success(true);
         }
         CacheKey cacheKey = CaptchaCacheKeyBuilder.build(key, templateCode);
         CacheResult<String> code = cachePlusOps.get(cacheKey);

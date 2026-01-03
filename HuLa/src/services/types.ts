@@ -617,6 +617,12 @@ export interface NoticeItem {
 export type FriendItem = {
   /** 好友id */
   uid: string
+  /** 好友名称 */
+  name?: string
+  /** 好友账号 */
+  account?: string
+  /** 好友头像 */
+  avatar?: string
   /** 好友备注 */
   remark: string
   /** 在线状态 1在线 2离线 */

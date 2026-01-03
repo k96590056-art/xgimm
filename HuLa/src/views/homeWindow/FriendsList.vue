@@ -49,13 +49,13 @@
                       :size="44"
                       class="grayscale"
                       :class="{ 'grayscale-0': item.activeStatus === OnlineEnum.ONLINE || isBotUser(item.uid) }"
-                      :src="AvatarUtils.getAvatarUrl(groupStore.getUserInfo(item.uid)!.avatar!)"
+                      :src="AvatarUtils.getAvatarUrl(item.avatar || groupStore.getUserInfo(item.uid)?.avatar || '')"
                       :color="themes.content === ThemeEnum.DARK ? '' : '#fff'"
                       :fallback-src="themes.content === ThemeEnum.DARK ? '/logoL.png' : '/logoD.png'" />
 
                     <n-flex vertical justify="space-between" class="h-fit flex-1 truncate">
                       <span class="text-14px leading-tight flex-1 truncate">
-                        {{ groupStore.getUserInfo(item.uid)!.name }}
+                        {{ item.name || groupStore.getUserInfo(item.uid)?.name || t('home.apply_list.unknown_user') }}
                       </span>
 
                       <div class="text leading-tight text-12px flex-y-center gap-4px flex-1 truncate">
@@ -239,7 +239,10 @@ const fetchContactData = async () => {
   }
 }
 
-const isBotUser = (uid: string) => groupStore.getUserInfo(uid)?.account === UserType.BOT
+const isBotUser = (uid: string) => {
+  const contact = contactStore.contactsList.find((item) => item.uid === uid)
+  return contact?.account === UserType.BOT || groupStore.getUserInfo(uid)?.account === UserType.BOT
+}
 /** 获取用户状态 */
 const getUserState = (uid: string) => {
   const userInfo = groupStore.getUserInfo(uid)

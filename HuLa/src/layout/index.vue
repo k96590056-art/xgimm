@@ -502,6 +502,9 @@ onBeforeMount(async () => {
 })
 
 onMounted(async () => {
+  // 立即触发 WebSocket 连接，确保用户登录后立即显示在线状态
+  ensureInitStarted(shouldBlockInitialRender.value)
+
   timerWorker.postMessage({
     type: 'startTimer',
     msgId: 'checkUpdate',

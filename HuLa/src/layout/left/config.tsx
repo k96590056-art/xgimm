@@ -63,15 +63,16 @@ const useMoreList = () => {
   const { logout, resetLoginState } = useLogin()
 
   return computed<OPT.L.MoreList[]>(() => [
-    {
-      label: t('menu.check_update'),
-      icon: 'arrow-circle-up',
-      click: () => {
-        useMitt.emit(MittEnum.LEFT_MODAL_SHOW, {
-          type: ModalEnum.CHECK_UPDATE
-        })
-      }
-    },
+    // 检查更新 - 已隐藏
+    // {
+    //   label: t('menu.check_update'),
+    //   icon: 'arrow-circle-up',
+    //   click: () => {
+    //     useMitt.emit(MittEnum.LEFT_MODAL_SHOW, {
+    //       type: ModalEnum.CHECK_UPDATE
+    //     })
+    //   }
+    // },
     {
       label: t('menu.lock_screen'),
       icon: 'lock',
@@ -133,24 +134,25 @@ const basePluginsList: Array<Omit<STO.Plugins<PluginEnum>, 'title' | 'shortTitle
     },
     miniShow: false
   },
-  {
-    icon: 'robot',
-    iconAction: 'GPT',
-    url: 'robot',
-    state: PluginEnum.BUILTIN,
-    isAdd: true,
-    dot: false,
-    progress: 0,
-    size: {
-      minWidth: 1240,
-      width: 1380,
-      height: 800
-    },
-    window: {
-      resizable: true
-    },
-    miniShow: false
-  }
+// ChatBot 插件已隐藏
+  // {
+  //   icon: 'robot',
+  //   iconAction: 'GPT',
+  //   url: 'robot',
+  //   state: PluginEnum.BUILTIN,
+  //   isAdd: true,
+  //   dot: false,
+  //   progress: 0,
+  //   size: {
+  //     minWidth: 1240,
+  //     width: 1380,
+  //     height: 800
+  //   },
+  //   window: {
+  //     resizable: true
+  //   },
+  //   miniShow: false
+  // }
   // {
   //   icon: 'Music',
   //   url: 'music',
@@ -224,12 +226,13 @@ const usePluginsList = () =>
         ...basePluginsList[0],
         title: t('home.plugins.dynamic'),
         shortTitle: t('home.plugins.dynamic_short_title')
-      },
-      {
-        ...basePluginsList[1],
-        title: t('home.plugins.chatbot'),
-        shortTitle: t('home.plugins.chatbot_short_title')
       }
+      // ChatBot 插件已隐藏
+      // {
+      //   ...basePluginsList[1],
+      //   title: t('home.plugins.chatbot'),
+      //   shortTitle: t('home.plugins.chatbot_short_title')
+      // }
     ])
   })()
 
