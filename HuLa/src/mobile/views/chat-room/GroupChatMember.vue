@@ -32,7 +32,7 @@
                 :item-size="42"
                 :items="filteredList">
                 <template #default="{ item }">
-                  <div @click="toFriendInfo(item.uid)" :key="item.uid" class="flex items-start" style="height: 52px">
+                  <div @click="handleMemberClick(item.uid)" :key="item.uid" class="flex items-start" style="height: 52px">
                     <div class="flex items-center gap-10px">
                       <n-avatar
                         :size="42"
@@ -57,6 +57,7 @@
 <script setup lang="ts">
 import { useDebounceFn } from '@vueuse/core'
 import type { UserItem } from '@/services/types'
+import { useChatStore } from '@/stores/chat'
 import { useGroupStore } from '@/stores/group'
 import { AvatarUtils } from '@/utils/AvatarUtils'
 import { toFriendInfoPage } from '@/utils/RouterUtils'
@@ -69,11 +70,25 @@ defineOptions({
   name: 'mobileGroupChatMember'
 })
 
+const chatStore = useChatStore()
 const groupStore = useGroupStore()
 
 const formData = ref({
   keyword: ''
 })
+
+// 处理成员点击事件
+const handleMemberClick = (uid: string) => {
+  // 群聊限制：只允许查看群主的账号信息
+  if (chatStore.isGroup) {
+    const currentLordId = groupStore.currentLordId
+    if (uid !== currentLordId) {
+      window.$message?.warning('在群聊中，只能查看群主的账号信息')
+      return
+    }
+  }
+  toFriendInfo(uid)
+}
 
 const filteredList = ref<UserItem[]>([])
 
@@ -97,7 +112,9 @@ onMounted(() => {
   }
 })
 
-const toFriendInfo = (uid: string) => toFriendInfoPage(uid)
+const toFriendInfo = (uid: string) => {
+  toFriendInfoPage(uid)
+}
 
 const search = useDebounceFn(() => {
   const kw = formData.value.keyword.trim().toLowerCase()

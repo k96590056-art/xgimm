@@ -3,12 +3,13 @@ import { BaseDirectory, create, exists, mkdir, readFile } from '@tauri-apps/plug
 import { info } from '@tauri-apps/plugin-log'
 import GraphemeSplitter from 'grapheme-splitter'
 import type { Ref } from 'vue'
-import { LimitEnum, MittEnum, MsgEnum } from '@/enums'
+import { LimitEnum, MittEnum, MsgEnum, RoomTypeEnum } from '@/enums'
 import { useMessage } from '@/hooks/useMessage.ts'
 import { useMitt } from '@/hooks/useMitt.ts'
 import router from '@/router'
 import { useChatStore } from '@/stores/chat.ts'
 import { useGlobalStore } from '@/stores/global.ts'
+import { useGroupStore } from '@/stores/group.ts'
 import { useUserStore } from '@/stores/user.ts'
 import { AvatarUtils } from '@/utils/AvatarUtils'
 import { removeTag } from '@/utils/Formatting'
@@ -43,6 +44,7 @@ export const useCommon = () => {
   const chatStore = useChatStore()
   const userStore = useUserStore()
   const { handleMsgClick } = useMessage()
+  const groupStore = useGroupStore()
   /** 当前登录用户的uid */
   const userUid = computed(() => userStore.userInfo!.uid)
   /** 回复消息 */
@@ -824,6 +826,15 @@ export const useCommon = () => {
    * @param type
    */
   const openMsgSession = async (uid: string, type: number = 2) => {
+    // 群聊限制：如果在群聊中，只允许给群主发送私聊
+    if (chatStore.isGroup && type === RoomTypeEnum.SINGLE) {
+      const currentLordId = groupStore.currentLordId
+      if (uid !== currentLordId) {
+        window.$message.warning('在群聊中，只能给群主发送私聊')
+        return
+      }
+    }
+
     // 获取home窗口实例
     const label = WebviewWindow.getCurrent().label
     if (router.currentRoute.value.name !== '/message' && label === 'home') {

@@ -807,9 +807,26 @@ export const useChatMain = (isHistoryMode = false, options: UseChatMainOptions =
       label: () => t('menu.send_message'),
       icon: 'message-action',
       click: (item: any) => {
-        openMsgSession(item.uid || item.fromUser.uid)
+        const targetUid = item.uid || item.fromUser.uid
+        // 群聊限制：只允许给群主发送私聊
+        if (chatStore.isGroup) {
+          const currentLordId = groupStore.currentLordId
+          if (targetUid !== currentLordId) {
+            window.$message.warning('在群聊中，只能给群主发送私聊')
+            return
+          }
+        }
+        openMsgSession(targetUid)
       },
-      visible: (item: any) => checkFriendRelation(item.uid || item.fromUser.uid, 'friend')
+      visible: (item: any) => {
+        const targetUid = item.uid || item.fromUser.uid
+        // 在群聊中，只对群主显示发送私聊选项
+        if (chatStore.isGroup) {
+          const currentLordId = groupStore.currentLordId
+          return targetUid === currentLordId && checkFriendRelation(targetUid, 'friend')
+        }
+        return checkFriendRelation(targetUid, 'friend')
+      }
     },
     {
       label: 'TA',
@@ -824,8 +841,30 @@ export const useChatMain = (isHistoryMode = false, options: UseChatMainOptions =
       icon: 'notes',
       click: (item: any, type: string) => {
         // 如果是聊天框内的资料就使用的是消息的key，如果是群聊成员的资料就使用的是uid
-        const uid = item.uid || item.message.id
+        const uid = item.uid || item.fromUser?.uid || item.message.id
+        // 群聊限制：只允许查看群主的账号信息
+        if (chatStore.isGroup) {
+          const targetUid = item.uid || item.fromUser?.uid
+          if (targetUid) {
+            const currentLordId = groupStore.currentLordId
+            if (targetUid !== currentLordId) {
+              window.$message.warning('在群聊中，只能查看群主的账号信息')
+              return
+            }
+          }
+        }
         useMitt.emit(`${MittEnum.INFO_POPOVER}-${type}`, { uid: uid, type: type })
+      },
+      visible: (item: any) => {
+        // 在群聊中，只对群主显示查看用户信息选项
+        if (chatStore.isGroup) {
+          const targetUid = item.uid || item.fromUser?.uid
+          if (targetUid) {
+            const currentLordId = groupStore.currentLordId
+            return targetUid === currentLordId
+          }
+        }
+        return true
       }
     },
     {
@@ -856,11 +895,28 @@ export const useChatMain = (isHistoryMode = false, options: UseChatMainOptions =
       label: () => t('menu.add_friend'),
       icon: 'people-plus',
       click: async (item: any) => {
+        const targetUid = item.uid || item.fromUser.uid
+        // 群聊限制：只允许给群主加好友
+        if (chatStore.isGroup) {
+          const currentLordId = groupStore.currentLordId
+          if (targetUid !== currentLordId) {
+            window.$message.warning('在群聊中，只能给群主加好友')
+            return
+          }
+        }
         await createWebviewWindow('申请加好友', 'addFriendVerify', 380, 300, '', false, 380, 300)
         globalStore.addFriendModalInfo.show = true
-        globalStore.addFriendModalInfo.uid = item.uid || item.fromUser.uid
+        globalStore.addFriendModalInfo.uid = targetUid
       },
-      visible: (item: any) => !checkFriendRelation(item.uid || item.fromUser.uid, 'all')
+      visible: (item: any) => {
+        const targetUid = item.uid || item.fromUser.uid
+        // 在群聊中，只对群主显示加好友选项
+        if (chatStore.isGroup) {
+          const currentLordId = groupStore.currentLordId
+          return targetUid === currentLordId && !checkFriendRelation(targetUid, 'all')
+        }
+        return !checkFriendRelation(targetUid, 'all')
+      }
     },
     {
       label: () => t('menu.set_admin'),

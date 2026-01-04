@@ -216,6 +216,7 @@ import { useMyRoomInfoUpdater } from '@/hooks/useMyRoomInfoUpdater'
 import { useWindow } from '@/hooks/useWindow'
 import type { UserItem } from '@/services/types'
 import { useCachedStore } from '@/stores/cached'
+import { useChatStore } from '@/stores/chat'
 import { useGroupStore } from '@/stores/group'
 import { useImageViewer } from '@/stores/imageViewer'
 import { useGlobalStore } from '@/stores/global'
@@ -243,6 +244,7 @@ const isEditingNickname = ref(false)
 const nicknameValue = ref('')
 const nicknameInputRef = useTemplateRef('nicknameInputRef')
 const cacheStore = useCachedStore()
+const chatStore = useChatStore()
 const groupStore = useGroupStore()
 const { persistMyRoomInfo, resolveMyRoomNickname } = useMyRoomInfoUpdater()
 
@@ -480,6 +482,14 @@ const footerOptions = computed<OPT.Details[]>(() => {
           if (!uid) {
             window.$message.error(t('home.chat_details.single.friend_info_missing'))
             return
+          }
+          // 群聊限制：如果在群聊详情页面，只能给群主发送私聊
+          if (chatStore.isGroup) {
+            const currentLordId = groupStore.currentLordId
+            if (uid !== currentLordId) {
+              window.$message.warning('在群聊中，只能给群主发送私聊')
+              return
+            }
           }
           openMsgSession(uid, sessionType)
         }

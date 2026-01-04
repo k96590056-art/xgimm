@@ -101,7 +101,7 @@
         </n-flex>
 
         <!-- 账号 -->
-        <n-flex align="center" :size="10">
+        <n-flex v-if="canViewAccount" align="center" :size="10">
           <n-flex align="center" :size="12">
             <p class="text-[--info-text-color]">{{ t('home.profile_card.labels.account') }}</p>
             <span class="text-(12px [--chat-text-color])">{{ `${groupStore.getUserInfo(uid)?.account}` }}</span>
@@ -175,10 +175,14 @@
         <n-button v-if="isCurrentUserUid" secondary type="info" @click="openEditInfo">
           {{ t('home.profile_card.buttons.edit') }}
         </n-button>
-        <n-button v-else-if="isMyFriend" secondary type="primary" @click="handleOpenMsgSession(uid)">
+        <n-button 
+          v-else-if="isMyFriend && canSendPrivateMessage" 
+          secondary 
+          type="primary" 
+          @click="handleOpenMsgSession(uid)">
           {{ t('home.profile_card.buttons.message') }}
         </n-button>
-        <n-button v-else secondary @click="addFriend">{{ t('home.profile_card.buttons.add_friend') }}</n-button>
+        <n-button v-else-if="canAddFriend" secondary @click="addFriend">{{ t('home.profile_card.buttons.add_friend') }}</n-button>
       </n-flex>
     </n-flex>
   </n-flex>
@@ -243,6 +247,24 @@ const groupNickname = computed(() => {
   const nickname = currentRoomUserInfo.value.myName?.trim()
   return nickname || ''
 })
+/** 是否可以查看账号信息（群聊中只能查看群主的账号） */
+const canViewAccount = computed(() => {
+  if (!isGroupChat.value) return true
+  const currentLordId = groupStore.currentLordId
+  return uid === currentLordId || isCurrentUserUid.value
+})
+/** 是否可以发送私聊消息（群聊中只能给群主发送私聊） */
+const canSendPrivateMessage = computed(() => {
+  if (!isGroupChat.value) return true
+  const currentLordId = groupStore.currentLordId
+  return uid === currentLordId
+})
+/** 是否可以加好友（群聊中只能给群主加好友） */
+const canAddFriend = computed(() => {
+  if (!isGroupChat.value) return true
+  const currentLordId = groupStore.currentLordId
+  return uid === currentLordId
+})
 // 显示的在线状态
 const displayActiveStatus = computed(() => {
   return resolvedUserInfo.value?.activeStatus ?? OnlineEnum.OFFLINE
@@ -293,6 +315,11 @@ const handleCopy = () => {
 }
 
 const addFriend = async () => {
+  // 群聊限制检查
+  if (!canAddFriend.value) {
+    window.$message.warning('在群聊中，只能给群主加好友')
+    return
+  }
   await createWebviewWindow(t('home.profile_card.modal.add_friend'), 'addFriendVerify', 380, 300, '', false, 380, 300)
   globalStore.addFriendModalInfo.show = true
   globalStore.addFriendModalInfo.uid = uid
@@ -301,6 +328,11 @@ const addFriend = async () => {
 let enableScroll = () => {}
 
 const handleOpenMsgSession = async (uid: string) => {
+  // 群聊限制检查
+  if (!canSendPrivateMessage.value) {
+    window.$message.warning('在群聊中，只能给群主发送私聊')
+    return
+  }
   enableScroll() // 在打开新会话前恢复所有滚动
   await openMsgSession(uid)
 }

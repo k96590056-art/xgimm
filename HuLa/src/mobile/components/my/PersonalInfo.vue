@@ -31,7 +31,7 @@
         </div>
 
         <!-- 账号 -->
-        <div class="flex flex-warp gap-2 items-center">
+        <div v-if="canViewAccount" class="flex flex-warp gap-2 items-center">
           <span class="text-bold-style">{{ t('mobile_personal_info.account') }}:{{ userDetailInfo!.account }}</span>
           <span v-if="isMyPage" @click="toMyQRCode" class="pe-15px">
             <img class="w-14px h-14px" src="@/assets/mobile/my/qr-code.webp" alt="" />
@@ -112,7 +112,7 @@
             type="primary"
             :disabled="loading"
             @click="handleAddFriend"
-            v-if="!props.isMyPage && !isMyFriend && !isBotUser(uid)"
+            v-if="!props.isMyPage && !isMyFriend && !isBotUser(uid) && canAddFriend"
             class="px-5 py-10px font-bold text-center rounded-full text-12px">
             +&nbsp;
             {{ t('mobile_personal_info.add_friend') }}
@@ -121,7 +121,7 @@
             type="primary"
             @click="toChatRoom"
             :disabled="loading"
-            v-if="!props.isMyPage && isMyFriend"
+            v-if="!props.isMyPage && isMyFriend && canSendPrivateMessage"
             class="px-5 py-10px text-center font-bold rounded-full text-12px">
             {{ isBotUser(uid) ? t('mobile_personal_info.open_bot') : t('mobile_personal_info.chat') }}
           </n-button>
@@ -182,6 +182,15 @@ const isMyFriend = ref(props.isMyFriend)
 const isBotUser = (uid: string) => groupStore.getUserInfo(uid)?.account === UserType.BOT
 
 const toChatRoom = async () => {
+  // 群聊限制：只能给群主发送私聊
+  if (chatStore.isGroup) {
+    const currentLordId = groupStore.currentLordId
+    if (uid !== currentLordId) {
+      window.$message?.warning('在群聊中，只能给群主发送私聊')
+      return
+    }
+  }
+
   try {
     const res = await getSessionDetailWithFriends({ id: uid, roomType: 2 })
     // 先检查会话是否已存在
@@ -199,7 +208,33 @@ const toChatRoom = async () => {
   }
 }
 
+// 是否可以查看账号信息（群聊中只能查看群主的账号）
+const canViewAccount = computed(() => {
+  if (!chatStore.isGroup) return true
+  const currentLordId = groupStore.currentLordId
+  return uid === currentLordId || props.isMyPage
+})
+
+// 是否可以发送私聊消息（群聊中只能给群主发送私聊）
+const canSendPrivateMessage = computed(() => {
+  if (!chatStore.isGroup) return true
+  const currentLordId = groupStore.currentLordId
+  return uid === currentLordId
+})
+
+// 是否可以加好友（群聊中只能给群主加好友）
+const canAddFriend = computed(() => {
+  if (!chatStore.isGroup) return true
+  const currentLordId = groupStore.currentLordId
+  return uid === currentLordId
+})
+
 const handleAddFriend = async () => {
+  // 群聊限制检查
+  if (!canAddFriend.value) {
+    window.$message?.warning('在群聊中，只能给群主加好友')
+    return
+  }
   globalStore.addFriendModalInfo.uid = uid
   router.push('/mobile/mobileFriends/confirmAddFriend')
 }
