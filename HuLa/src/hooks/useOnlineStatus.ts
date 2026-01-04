@@ -1,6 +1,7 @@
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { OnlineEnum } from '@/enums'
+import { useContactStore } from '@/stores/contacts'
 import { useGroupStore } from '@/stores/group'
 import { useUserStore } from '@/stores/user'
 import { useUserStatusStore } from '@/stores/userStatus'
@@ -10,12 +11,22 @@ export const useOnlineStatus = (uid?: ComputedRef<string | undefined> | Ref<stri
   const { t } = useI18n()
   const userStore = useUserStore()
   const groupStore = useGroupStore()
+  const contactStore = useContactStore()
   const userStatusStore = useUserStatusStore()
   const { currentState } = storeToRefs(userStatusStore)
 
   // 如果传入了uid参数，使用传入的uid对应的用户信息；否则使用当前登录用户的信息
+  // 优先从 groupStore 获取，如果没有则从 contactStore 获取（解决好友在线状态不同步问题）
   const currentUser = uid
-    ? computed(() => (uid.value ? groupStore.getUserInfo(uid.value) : undefined))
+    ? computed(() => {
+        if (!uid.value) return undefined
+        // 先从 groupStore 获取
+        const groupUser = groupStore.getUserInfo(uid.value)
+        if (groupUser) return groupUser
+        // 如果 groupStore 没有，从 contactStore 获取好友信息
+        const contactUser = contactStore.contactsList.find((c) => c.uid === uid.value)
+        return contactUser
+      })
     : computed(() => {
         // 没有传入uid时，从groupStore获取当前用户信息以获得activeStatus
         const currentUid = userStore.userInfo?.uid
@@ -23,8 +34,9 @@ export const useOnlineStatus = (uid?: ComputedRef<string | undefined> | Ref<stri
       })
 
   // userStateId优先从userStore获取（保证响应式更新），如果没有则从currentUser获取
+  // 注意：FriendItem 类型没有 userStateId，需要使用类型断言
   const userStateId = uid
-    ? computed(() => currentUser.value?.userStateId)
+    ? computed(() => (currentUser.value as { userStateId?: string } | undefined)?.userStateId)
     : computed(() => userStore.userInfo?.userStateId)
 
   // 当前登录用户默认在线（因为已登录），其他用户从数据中获取状态

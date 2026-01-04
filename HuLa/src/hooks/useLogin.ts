@@ -289,7 +289,7 @@ export const useLogin = () => {
           console.warn('关闭注册窗口失败:', error)
         })
       }
-      await createWebviewWindow('HuLa', 'home', 960, 720, 'login', true, 330, 480, undefined, false)
+      await createWebviewWindow('XG-IM', 'home', 960, 720, 'login', true, 330, 480, undefined, false)
       // 只有在成功创建home窗口并且已登录的情况下才显示托盘菜单
       globalStore.isTrayMenuShow = true
     } else {

@@ -549,7 +549,7 @@ const register = async () => {
     await init({ isInitialSync: true })
 
     // 创建主窗口并关闭登录/注册窗口
-    await createWebviewWindow('HuLa', 'home', 960, 720, 'login', true, 330, 480, undefined, false)
+    await createWebviewWindow('XG-IM', 'home', 960, 720, 'login', true, 330, 480, undefined, false)
 
     // 关闭登录窗口
     const loginWindow = await WebviewWindow.getByLabel('login')
