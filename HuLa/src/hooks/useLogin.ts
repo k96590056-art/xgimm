@@ -63,9 +63,18 @@ export const useLogin = () => {
   /** 网络连接是否正常 */
   const { isOnline } = useNetwork()
   const loading = ref(false)
-  /** 登录按钮的文本内容 */
-  const loginText = ref(isOnline.value ? t('login.button.login.default') : t('login.button.login.network_error'))
+  /** 登录按钮的文本内容 - 使用空字符串初始化，通过 watchEffect 更新 */
+  const loginText = ref('')
   const loginDisabled = ref(!isOnline.value)
+
+  // 监听 i18n 和网络状态变化，更新登录按钮文本
+  watchEffect(() => {
+    const defaultText = isOnline.value ? t('login.button.login.default') : t('login.button.login.network_error')
+    // 只有当文本为空或显示为 key 时才更新
+    if (!loginText.value || loginText.value.startsWith('login.')) {
+      loginText.value = defaultText
+    }
+  })
   /** 账号信息 */
   const info = ref({
     account: '',

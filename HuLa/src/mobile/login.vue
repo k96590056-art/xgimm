@@ -51,7 +51,7 @@
           autoCapitalize="off"
           :placeholder="accountPH"
           @focus="accountPH = ''"
-          @blur="accountPH = t('login.mobile.input.account_placeholder')"
+          @blur="accountPH = defaultAccountPH"
           clearable>
           <template #suffix>
             <n-flex v-if="loginHistories.length > 0" @click="arrowStatus = !arrowStatus">
@@ -98,7 +98,7 @@
           autoCapitalize="off"
           :placeholder="passwordPH"
           @focus="passwordPH = ''"
-          @blur="passwordPH = t('login.mobile.input.code_placeholder')"
+          @blur="passwordPH = defaultPasswordPH"
           clearable />
 
         <n-flex justify="flex-end" :size="6">
@@ -146,7 +146,7 @@
           :allow-input="noSideSpace"
           :placeholder="registerNamePH"
           @focus="registerNamePH = ''"
-          @blur="registerNamePH = t('login.mobile.register.input.nickname')"
+          @blur="registerNamePH = defaultRegisterNamePH"
           clearable />
 
         <n-input
@@ -163,7 +163,7 @@
           :allow-input="noSideSpace"
           :placeholder="registerPasswordPH"
           @focus="registerPasswordPH = ''"
-          @blur="registerPasswordPH = t('login.mobile.register.input.password')"
+          @blur="registerPasswordPH = defaultRegisterPasswordPH"
           clearable />
 
         <n-input
@@ -180,7 +180,7 @@
           :allow-input="noSideSpace"
           :placeholder="confirmPasswordPH"
           @focus="confirmPasswordPH = ''"
-          @blur="confirmPasswordPH = t('login.mobile.register.input.confirm_password')"
+          @blur="confirmPasswordPH = defaultConfirmPasswordPH"
           clearable />
 
         <!-- 密码提示信息 -->
@@ -236,7 +236,7 @@
           clearable
           type="text"
           @focus="registerEmailPH = ''"
-          @blur="registerEmailPH = t('login.mobile.register.input.email')" />
+          @blur="registerEmailPH = defaultRegisterEmailPH" />
 
         <!-- 邮箱验证码 -->
         <div class="flex justify-between items-center gap-10px">
@@ -252,7 +252,7 @@
             :allow-input="noSideSpace"
             :placeholder="registerCodePH"
             @focus="registerCodePH = ''"
-            @blur="registerCodePH = t('login.mobile.register.input.email_verification_code')"
+            @blur="registerCodePH = defaultRegisterCodePH"
             clearable />
 
           <n-button
@@ -331,19 +331,51 @@ const registerInfo = ref<LocalRegisterInfo>({
   systemType: 2
 })
 
-// 登录相关的占位符和状态
-const accountPH = ref(t('login.mobile.input.account_placeholder'))
-const passwordPH = ref(t('login.mobile.input.code_placeholder'))
+// 登录相关的占位符和状态 - 使用 computed 确保 i18n 加载后能正确显示
+const defaultAccountPH = computed(() => t('login.mobile.input.account_placeholder'))
+const defaultPasswordPH = computed(() => t('login.mobile.input.code_placeholder'))
+const accountPH = ref('')
+const passwordPH = ref('')
 const protocol = ref(true)
 const arrowStatus = ref(false)
 
-// 注册相关的占位符和状态
-const registerNamePH = ref(t('login.mobile.register.input.nickname'))
-const registerEmailPH = ref(t('login.mobile.register.input.email'))
-const registerPasswordPH = ref(t('login.mobile.register.input.password'))
-const confirmPasswordPH = ref(t('login.mobile.register.input.confirm_password'))
-const registerCodePH = ref(t('login.mobile.register.input.email_verification_code'))
+// 注册相关的占位符和状态 - 使用 computed 确保 i18n 加载后能正确显示
+const defaultRegisterNamePH = computed(() => t('login.mobile.register.input.nickname'))
+const defaultRegisterEmailPH = computed(() => t('login.mobile.register.input.email'))
+const defaultRegisterPasswordPH = computed(() => t('login.mobile.register.input.password'))
+const defaultConfirmPasswordPH = computed(() => t('login.mobile.register.input.confirm_password'))
+const defaultRegisterCodePH = computed(() => t('login.mobile.register.input.email_verification_code'))
+const registerNamePH = ref('')
+const registerEmailPH = ref('')
+const registerPasswordPH = ref('')
+const confirmPasswordPH = ref('')
+const registerCodePH = ref('')
 const registerProtocol = ref(true)
+
+// 监听 i18n 变化，更新占位符
+watchEffect(() => {
+  if (!accountPH.value || accountPH.value.startsWith('login.')) {
+    accountPH.value = defaultAccountPH.value
+  }
+  if (!passwordPH.value || passwordPH.value.startsWith('login.')) {
+    passwordPH.value = defaultPasswordPH.value
+  }
+  if (!registerNamePH.value || registerNamePH.value.startsWith('login.')) {
+    registerNamePH.value = defaultRegisterNamePH.value
+  }
+  if (!registerEmailPH.value || registerEmailPH.value.startsWith('login.')) {
+    registerEmailPH.value = defaultRegisterEmailPH.value
+  }
+  if (!registerPasswordPH.value || registerPasswordPH.value.startsWith('login.')) {
+    registerPasswordPH.value = defaultRegisterPasswordPH.value
+  }
+  if (!confirmPasswordPH.value || confirmPasswordPH.value.startsWith('login.')) {
+    confirmPasswordPH.value = defaultConfirmPasswordPH.value
+  }
+  if (!registerCodePH.value || registerCodePH.value.startsWith('login.')) {
+    registerCodePH.value = defaultRegisterCodePH.value
+  }
+})
 const registerLoading = ref(false)
 const sendCodeLoading = ref(false)
 const sendCodeCountdown = ref(0)
@@ -505,8 +537,8 @@ const resetLoginForm = () => {
     uid: '',
     name: ''
   }
-  accountPH.value = t('login.mobile.input.account_placeholder')
-  passwordPH.value = t('login.mobile.input.code_placeholder')
+  accountPH.value = defaultAccountPH.value
+  passwordPH.value = defaultPasswordPH.value
   arrowStatus.value = false
 }
 
@@ -524,11 +556,11 @@ const resetRegisterForm = () => {
     key: 'REGISTER_EMAIL'
   } as LocalRegisterInfo
   currentStep.value = 1
-  registerNamePH.value = t('login.mobile.register.input.nickname')
-  registerEmailPH.value = t('login.mobile.register.input.email')
-  registerPasswordPH.value = t('login.mobile.register.input.password')
-  confirmPasswordPH.value = t('login.mobile.register.input.confirm_password')
-  registerCodePH.value = t('login.mobile.register.input.email_verification_code')
+  registerNamePH.value = defaultRegisterNamePH.value
+  registerEmailPH.value = defaultRegisterEmailPH.value
+  registerPasswordPH.value = defaultRegisterPasswordPH.value
+  confirmPasswordPH.value = defaultConfirmPasswordPH.value
+  registerCodePH.value = defaultRegisterCodePH.value
 
   sendCodeLoading.value = false
   stopSendCodeCountdown()
