@@ -15,26 +15,26 @@ mod platform {
             .env()
             .map_err(|e| format!("Failed to get JNI environment: {}", e))?;
 
-        // 调用 KeepAliveHelper.startKeepAlive
-        let helper_class = env
-            .find_class("com/xgimm/www/KeepAliveHelper")
-            .map_err(|e| format!("Failed to find KeepAliveHelper class: {}", e))?;
+        // 直接调用 KeepAliveService.startService，避免通过 KeepAliveHelper
+        let service_class = env
+            .find_class("com/xgimm/www/KeepAliveService")
+            .map_err(|e| format!("Failed to find KeepAliveService class: {}", e))?;
 
         let method_id = env
             .get_static_method_id(
-                helper_class,
-                "startKeepAlive",
+                service_class,
+                "startService",
                 "(Landroid/content/Context;)V",
             )
-            .map_err(|e| format!("Failed to find startKeepAlive method: {}", e))?;
+            .map_err(|e| format!("Failed to find startService method: {}", e))?;
 
         let context = JObject::from(activity);
         env.call_static_method(
-            helper_class,
+            service_class,
             method_id,
             &[context.into()],
         )
-        .map_err(|e| format!("Failed to call startKeepAlive: {}", e))?;
+        .map_err(|e| format!("Failed to call startService: {}", e))?;
 
         tracing::info!("Keep alive service started");
         Ok(())
@@ -49,25 +49,26 @@ mod platform {
             .env()
             .map_err(|e| format!("Failed to get JNI environment: {}", e))?;
 
-        let helper_class = env
-            .find_class("com/xgimm/www/KeepAliveHelper")
-            .map_err(|e| format!("Failed to find KeepAliveHelper class: {}", e))?;
+        // 直接调用 KeepAliveService.stopService，避免通过 KeepAliveHelper
+        let service_class = env
+            .find_class("com/xgimm/www/KeepAliveService")
+            .map_err(|e| format!("Failed to find KeepAliveService class: {}", e))?;
 
         let method_id = env
             .get_static_method_id(
-                helper_class,
-                "stopKeepAlive",
+                service_class,
+                "stopService",
                 "(Landroid/content/Context;)V",
             )
-            .map_err(|e| format!("Failed to find stopKeepAlive method: {}", e))?;
+            .map_err(|e| format!("Failed to find stopService method: {}", e))?;
 
         let context = JObject::from(activity);
         env.call_static_method(
-            helper_class,
+            service_class,
             method_id,
             &[context.into()],
         )
-        .map_err(|e| format!("Failed to call stopKeepAlive: {}", e))?;
+        .map_err(|e| format!("Failed to call stopService: {}", e))?;
 
         tracing::info!("Keep alive service stopped");
         Ok(())

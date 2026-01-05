@@ -1,7 +1,6 @@
 package com.xgimm.www
 
 import android.content.Context
-import androidx.appcompat.app.AppCompatActivity
 
 object KeepAliveHelper {
     /**
