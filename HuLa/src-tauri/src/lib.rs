@@ -409,6 +409,8 @@ fn get_invoke_handlers() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
     use crate::mobiles::splash::hide_splash_screen;
     #[cfg(target_os = "android")]
     use crate::mobiles::keep_alive::{start_keep_alive_service, stop_keep_alive_service};
+    #[cfg(mobile)]
+    use crate::mobiles::notification::show_message_notification_command;
     use crate::websocket::commands::{
         ws_disconnect, ws_force_reconnect, ws_get_app_background_state, ws_get_health,
         ws_get_state, ws_init_connection, ws_is_connected, ws_send_message,

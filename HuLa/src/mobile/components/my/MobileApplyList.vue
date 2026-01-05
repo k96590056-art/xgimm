@@ -240,17 +240,17 @@ const applyMsg = computed(() => (item: any) => {
   }
 })
 
-// 下拉菜单选项
-const dropdownOptions = [
+// 下拉菜单选项 - 使用 computed 确保 i18n 加载后能正确响应翻译变化
+const dropdownOptions = computed(() => [
   {
     label: t('mobile_mymessage.menu.decline'),
     key: 'reject'
   },
   {
-    label: t('mobile_mymessage.menu.decline'),
+    label: t('mobile_mymessage.menu.ignore'),
     key: 'ignore'
   }
-]
+])
 
 const avatarSrc = (url: string) => AvatarUtils.getAvatarUrl(url)
 

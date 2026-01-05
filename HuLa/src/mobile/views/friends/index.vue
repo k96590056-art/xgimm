@@ -188,9 +188,9 @@ const renderImgIcon = (src: string) => {
 
 /**
  * UI 视图数据，包含菜单选项及其图标
- * @type {import('vue').Ref<{ addOptions: { label: string; key: string; icon: () => import('vue').VNode }[] }>}
+ * 使用 computed 确保在 i18n 加载后能正确响应翻译变化
  */
-const uiViewsData = ref({
+const uiViewsData = computed(() => ({
   addOptions: [
     {
       label: t('menu.start_group_chat'),
@@ -203,7 +203,7 @@ const uiViewsData = ref({
       icon: renderImgIcon(addFriendIcon)
     }
   ]
-})
+}))
 
 const menuList = ref([
   { label: '添加分组', icon: 'plus' },
