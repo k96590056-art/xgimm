@@ -6,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+nul
 node_modules
 dist
 dist-ssr
@@ -37,3 +37,4 @@ db.sqlite
 
 src/typings/components.pc.d.ts
 src/typings/components.mobile.d.ts
+/HuLa/nul

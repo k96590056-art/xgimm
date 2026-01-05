@@ -20,7 +20,7 @@
       "minimumSystemVersion": "13.0"
     },
     "android": {
-      "package": "com.xgimm.www"
+      "minSdkVersion": 26
     }
   },
   "app": {

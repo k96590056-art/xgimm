@@ -1,0 +1,6 @@
+database:
+  sqlite_file: db.sqlite
+backend:
+  base_url: http://154.201.89.241:18888
+  ws_url: ws://154.201.89.241:19090
+active_config: local

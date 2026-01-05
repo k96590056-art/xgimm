@@ -21,11 +21,20 @@
             <div class="text-base">{{ item.label }}</div>
             <div>
               <!-- 根据 type 渲染对应组件 -->
-              <n-switch v-if="item.type === 'switch'" v-model:value="item.value" />
-              <n-input v-else-if="item.type === 'input'" v-model="item.value" placeholder="请输入" class="w-40" />
+              <n-switch
+                v-if="item.type === 'switch'"
+                :value="item.value as boolean"
+                @update:value="(item.onChange as (val: boolean) => void)" />
+              <n-input
+                v-else-if="item.type === 'input'"
+                :value="item.value as string"
+                @update:value="(item.onChange as (val: string) => void)"
+                placeholder="请输入"
+                class="w-40" />
               <n-select
                 v-else-if="item.type === 'select'"
-                v-model="item.value"
+                :value="item.value as string"
+                @update:value="(item.onChange as (val: string) => void)"
                 :options="item.options"
                 placeholder="请选择"
                 class="w-40" />
@@ -62,36 +71,44 @@ const { isTrayMenuShow } = storeToRefs(globalStore)
 const settingStore = useSettingStore()
 const userStore = useUserStore()
 
-// 定义设置项
-const settings = reactive([
+// 通知开关状态
+const notificationEnabled = ref(true)
+// 用户名编辑状态
+const editedUsername = ref('')
+
+// 初始化用户名
+watchEffect(() => {
+  if (userStore.userInfo?.name && !editedUsername.value) {
+    editedUsername.value = userStore.userInfo.name
+  }
+})
+
+// 定义设置项 - 使用 computed 确保 i18n 加载后能正确响应翻译变化
+const settings = computed(() => [
   {
     key: 'notifications',
     label: t('mobile_setting.silent_label'),
     type: 'switch',
-    value: computed({
-      get: () => true,
-      set: () => {
-        /* 更新通知设置 */
-      }
-    })
+    value: notificationEnabled.value,
+    onChange: (val: boolean) => {
+      notificationEnabled.value = val
+    }
   },
   {
     key: 'username',
     label: t('mobile_setting.nickname'),
     type: 'input',
-    value: computed({
-      get: () => userStore.userInfo?.name || '',
-      set: () => {}
-    })
+    value: editedUsername.value,
+    onChange: (val: string) => {
+      editedUsername.value = val
+    }
   },
   {
     key: 'theme',
     label: t('mobile_setting.theme'),
     type: 'select',
-    value: computed({
-      get: () => settingStore.themes.content,
-      set: (val) => settingStore.toggleTheme(val)
-    }),
+    value: settingStore.themes.content,
+    onChange: (val: string) => settingStore.toggleTheme(val),
     options: [
       { label: t('mobile_setting.themes.light'), value: ThemeEnum.LIGHT },
       { label: t('mobile_setting.themes.dark'), value: ThemeEnum.DARK }
@@ -101,12 +118,10 @@ const settings = reactive([
     key: 'language',
     label: t('mobile_setting.language'),
     type: 'select',
-    value: computed({
-      get: () => settingStore.page.lang,
-      set: (v) => {
-        settingStore.page.lang = v
-      }
-    }),
+    value: settingStore.page.lang,
+    onChange: (val: string) => {
+      settingStore.page.lang = val
+    },
     options: [
       {
         label: 'Automatic',

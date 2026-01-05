@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use crate::mobiles::notification::show_message_notification;
 
 /// 检查应用是否在后台，如果是则显示通知

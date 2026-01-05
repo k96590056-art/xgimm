@@ -1,38 +1,29 @@
 #[cfg(target_os = "android")]
 mod platform {
     use tauri::AppHandle;
-    use jni::JNIEnv;
-    use jni::objects::JObject;
-    
-    pub fn start_keep_alive(app_handle: AppHandle) -> Result<(), String> {
-        // 获取 Android Activity
-        let activity = app_handle
-            .activity()
-            .ok_or("Failed to get Android Activity")?;
-        
-        // 获取 JNI 环境
-        let env = app_handle
-            .env()
-            .map_err(|e| format!("Failed to get JNI environment: {}", e))?;
+    use jni::objects::{JClass, JObject, JValue};
 
-        // 直接调用 KeepAliveService.startService，避免通过 KeepAliveHelper
-        let service_class = env
+    pub fn start_keep_alive(_app_handle: AppHandle) -> Result<(), String> {
+        // 使用 ndk_context 获取 Android 上下文
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
+            .map_err(|e| format!("Failed to get JavaVM: {}", e))?;
+        let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+        // 附加当前线程到 JVM
+        let mut env = vm.attach_current_thread()
+            .map_err(|e| format!("Failed to attach thread to JVM: {}", e))?;
+
+        // 直接调用 KeepAliveService.startService
+        let service_class: JClass = env
             .find_class("com/xgimm/www/KeepAliveService")
             .map_err(|e| format!("Failed to find KeepAliveService class: {}", e))?;
 
-        let method_id = env
-            .get_static_method_id(
-                service_class,
-                "startService",
-                "(Landroid/content/Context;)V",
-            )
-            .map_err(|e| format!("Failed to find startService method: {}", e))?;
-
-        let context = JObject::from(activity);
         env.call_static_method(
             service_class,
-            method_id,
-            &[context.into()],
+            "startService",
+            "(Landroid/content/Context;)V",
+            &[JValue::Object(&activity)],
         )
         .map_err(|e| format!("Failed to call startService: {}", e))?;
 
@@ -40,33 +31,27 @@ mod platform {
         Ok(())
     }
 
-    pub fn stop_keep_alive(app_handle: AppHandle) -> Result<(), String> {
-        let activity = app_handle
-            .activity()
-            .ok_or("Failed to get Android Activity")?;
-        
-        let env = app_handle
-            .env()
-            .map_err(|e| format!("Failed to get JNI environment: {}", e))?;
+    pub fn stop_keep_alive(_app_handle: AppHandle) -> Result<(), String> {
+        // 使用 ndk_context 获取 Android 上下文
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
+            .map_err(|e| format!("Failed to get JavaVM: {}", e))?;
+        let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
 
-        // 直接调用 KeepAliveService.stopService，避免通过 KeepAliveHelper
-        let service_class = env
+        // 附加当前线程到 JVM
+        let mut env = vm.attach_current_thread()
+            .map_err(|e| format!("Failed to attach thread to JVM: {}", e))?;
+
+        // 直接调用 KeepAliveService.stopService
+        let service_class: JClass = env
             .find_class("com/xgimm/www/KeepAliveService")
             .map_err(|e| format!("Failed to find KeepAliveService class: {}", e))?;
 
-        let method_id = env
-            .get_static_method_id(
-                service_class,
-                "stopService",
-                "(Landroid/content/Context;)V",
-            )
-            .map_err(|e| format!("Failed to find stopService method: {}", e))?;
-
-        let context = JObject::from(activity);
         env.call_static_method(
             service_class,
-            method_id,
-            &[context.into()],
+            "stopService",
+            "(Landroid/content/Context;)V",
+            &[JValue::Object(&activity)],
         )
         .map_err(|e| format!("Failed to call stopService: {}", e))?;
 
@@ -78,7 +63,7 @@ mod platform {
 #[cfg(not(target_os = "android"))]
 mod platform {
     use tauri::AppHandle;
-    
+
     pub fn start_keep_alive(_app_handle: AppHandle) -> Result<(), String> {
         Ok(())
     }
@@ -111,4 +96,3 @@ pub fn start_keep_alive_service(app_handle: AppHandle) -> Result<(), String> {
 pub fn stop_keep_alive_service(app_handle: AppHandle) -> Result<(), String> {
     stop_keep_alive(app_handle)
 }
-
