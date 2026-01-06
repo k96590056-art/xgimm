@@ -330,15 +330,18 @@ fn setup_mobile() {
                 }
             }
             common_setup(app_handle.clone())?;
-            #[cfg(target_os = "android")]
-            {
-                // 启动保活服务
-                if let Err(e) = keep_alive::start_keep_alive(app_handle.clone()) {
-                    tracing::warn!("Failed to start keep alive service: {}", e);
-                } else {
-                    tracing::info!("Keep alive service started successfully");
-                }
-            }
+            // Android 保活服务暂时禁用
+            // 原因: JNI FindClass 在 native 线程中无法找到应用的自定义类
+            // TODO: 需要使用 Activity 的类加载器或在 Java 端缓存类引用
+            // #[cfg(target_os = "android")]
+            // {
+            //     // 启动保活服务
+            //     if let Err(e) = keep_alive::start_keep_alive(app_handle.clone()) {
+            //         tracing::warn!("Failed to start keep alive service: {}", e);
+            //     } else {
+            //         tracing::info!("Keep alive service started successfully");
+            //     }
+            // }
             tracing::info!("Mobile application setup completed successfully");
             Ok(())
         })

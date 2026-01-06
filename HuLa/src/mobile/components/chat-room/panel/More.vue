@@ -69,22 +69,22 @@
 </template>
 
 <script setup lang="ts">
-import { CallTypeEnum, RoomTypeEnum } from '@/enums'
+import { CallTypeEnum } from '@/enums'
 import { UploaderFileListItem } from 'vant'
 import router from '@/router'
 import { useGlobalStore } from '@/stores/global'
 
 const globalStore = useGlobalStore()
 
-const isGroup = computed(() => globalStore.currentSession?.type === RoomTypeEnum.GROUP)
-
 const pickRtcCall = ref(false)
 // ==== 展开面板 ====
 const options = ref([
   { label: '文件', icon: 'file', showArrow: false, isRotate: true, onClick: () => {}, isShow: () => true },
   { label: '图片', icon: 'photo', showArrow: false, isRotate: true, onClick: () => {}, isShow: () => true },
-  { label: '视频', icon: 'voice', showArrow: true, isRotate: false, onClick: () => {}, isShow: () => true },
+  // 视频按钮暂时隐藏 - 功能未实现
+  { label: '视频', icon: 'voice', showArrow: true, isRotate: false, onClick: () => {}, isShow: () => false },
   { label: '历史', icon: 'history', showArrow: true, isRotate: false, onClick: () => {}, isShow: () => true },
+  // 视频通话按钮
   {
     label: '视频通话',
     icon: 'video-one',
@@ -93,9 +93,7 @@ const options = ref([
     onClick: () => {
       pickRtcCall.value = true
     },
-    isShow: () => {
-      return !isGroup.value
-    }
+    isShow: () => true
   }
 ])
 

@@ -62,8 +62,8 @@ pub fn init_common_plugins<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Bui
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init());
 
-    // mic_recorder 在 Android 模拟器上可能崩溃，只在非 Android 平台启用
-    #[cfg(not(target_os = "android"))]
+    // mic_recorder 录音插件
+    // 注意: 在 Android 模拟器上可能不稳定，但真机应该正常工作
     let builder = builder.plugin(tauri_plugin_mic_recorder::init());
 
     // 添加日志插件

@@ -14,20 +14,29 @@ mod platform {
         let mut env = vm.attach_current_thread()
             .map_err(|e| format!("Failed to attach thread to JVM: {}", e))?;
 
-        // 直接调用 KeepAliveService.startService
+        // 查找 KeepAliveService 类
         let service_class: JClass = env
             .find_class("com/xgimm/www/KeepAliveService")
             .map_err(|e| format!("Failed to find KeepAliveService class: {}", e))?;
 
-        env.call_static_method(
-            service_class,
+        // 获取 Companion 对象
+        let companion_field = env
+            .get_static_field(&service_class, "Companion", "Lcom/xgimm/www/KeepAliveService$Companion;")
+            .map_err(|e| format!("Failed to get Companion field: {}", e))?;
+
+        let companion_obj = companion_field.l()
+            .map_err(|e| format!("Failed to get Companion object: {}", e))?;
+
+        // 调用 Companion.startService(context)
+        env.call_method(
+            &companion_obj,
             "startService",
             "(Landroid/content/Context;)V",
             &[JValue::Object(&activity)],
         )
         .map_err(|e| format!("Failed to call startService: {}", e))?;
 
-        tracing::info!("Keep alive service started");
+        tracing::info!("[KeepAlive] Android foreground service started");
         Ok(())
     }
 
@@ -42,20 +51,29 @@ mod platform {
         let mut env = vm.attach_current_thread()
             .map_err(|e| format!("Failed to attach thread to JVM: {}", e))?;
 
-        // 直接调用 KeepAliveService.stopService
+        // 查找 KeepAliveService 类
         let service_class: JClass = env
             .find_class("com/xgimm/www/KeepAliveService")
             .map_err(|e| format!("Failed to find KeepAliveService class: {}", e))?;
 
-        env.call_static_method(
-            service_class,
+        // 获取 Companion 对象
+        let companion_field = env
+            .get_static_field(&service_class, "Companion", "Lcom/xgimm/www/KeepAliveService$Companion;")
+            .map_err(|e| format!("Failed to get Companion field: {}", e))?;
+
+        let companion_obj = companion_field.l()
+            .map_err(|e| format!("Failed to get Companion object: {}", e))?;
+
+        // 调用 Companion.stopService(context)
+        env.call_method(
+            &companion_obj,
             "stopService",
             "(Landroid/content/Context;)V",
             &[JValue::Object(&activity)],
         )
         .map_err(|e| format!("Failed to call stopService: {}", e))?;
 
-        tracing::info!("Keep alive service stopped");
+        tracing::info!("[KeepAlive] Android foreground service stopped");
         Ok(())
     }
 }

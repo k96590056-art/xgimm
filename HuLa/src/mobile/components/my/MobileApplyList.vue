@@ -68,7 +68,7 @@
                 expand-trigger="click"
                 :line-clamp="1"
                 style="max-width: 100%">
-                {{ groupStore.getUserInfo(item.senderId)?.name || t('mobile_mymessage.unknown_user') }}
+                {{ getCachedUserInfo(item.senderId)?.name || t('mobile_mymessage.unknown_user') }}
               </n-ellipsis>
             </div>
           </div>
@@ -131,13 +131,13 @@
 </template>
 <script setup lang="ts">
 import { uniq } from 'es-toolkit'
-import type { NoticeItem } from '@/services/types.ts'
+import type { NoticeItem, UserItem } from '@/services/types.ts'
 import { NoticeType, RequestNoticeAgreeStatus } from '@/services/types.ts'
 import { useContactStore } from '@/stores/contacts.ts'
 import { useUserStore } from '@/stores/user'
 import { AvatarUtils } from '@/utils/AvatarUtils'
 import { useGroupStore } from '@/stores/group'
-import { getGroupInfo } from '@/utils/ImRequestUtils'
+import { getGroupInfo, getUserByIds } from '@/utils/ImRequestUtils'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -156,6 +156,10 @@ const props = defineProps<{
 // 存储群组信息的响应式对象
 const groupDetailsMap = ref<Record<string, any>>({})
 const loadingGroups = ref<Set<string>>(new Set())
+
+// 新增：本地缓存用户信息
+const localUserInfoMap = ref<Record<string, UserItem>>({})
+const loadingUsers = ref<Set<string>>(new Set())
 
 // 检查好友申请是否已被接受
 const isAccepted = (item: any) => {
@@ -223,14 +227,14 @@ const applyMsg = computed(() => (item: any) => {
     if (item.eventType === NoticeType.GROUP_APPLY) {
       return t('mobile_mymessage.group.apply_to_join', { name: groupDetail.name })
     } else if (item.eventType === NoticeType.GROUP_INVITE) {
-      const inviter = groupStore.getUserInfo(item.operateId)?.name || t('mobile_mymessage.unknown_user')
+      const inviter = getCachedUserInfo(item.operateId)?.name || t('mobile_mymessage.unknown_user')
       return t('mobile_mymessage.group.invited_to_join', { inviter, group: groupDetail.name })
     } else if (isFriendApplyOrGroupInvite(item)) {
       return isCurrentUser(item.senderId)
         ? t('mobile_mymessage.group.joined_group', { group: groupDetail.name })
         : t('mobile_mymessage.group.invited_curr_to_join', { group: groupDetail.name })
     } else if (item.eventType === NoticeType.GROUP_MEMBER_DELETE) {
-      const operator = groupStore.getUserInfo(item.senderId)?.name || t('mobile_mymessage.unknown_user')
+      const operator = getCachedUserInfo(item.senderId)?.name || t('mobile_mymessage.unknown_user')
       return t('mobile_mymessage.group.kicked_out', { operator, group: groupDetail.name })
     } else if (item.eventType === NoticeType.GROUP_SET_ADMIN) {
       return t('mobile_mymessage.group.set_as_admin', { group: groupDetail.name })
@@ -260,6 +264,53 @@ const isCurrentUser = (uid: string) => {
 }
 
 /**
+ * 获取用户信息（优先从本地缓存获取，其次从groupStore获取）
+ * @param uid 用户ID
+ */
+const getCachedUserInfo = (uid: string) => {
+  // 优先从本地缓存获取
+  if (localUserInfoMap.value[uid]) {
+    return localUserInfoMap.value[uid]
+  }
+  // 其次从groupStore获取
+  return groupStore.getUserInfo(uid)
+}
+
+/**
+ * 批量获取缺失的用户信息
+ * @param uids 用户ID列表
+ */
+const fetchMissingUserInfo = async (uids: string[]) => {
+  // 过滤出缓存中不存在且未在加载中的用户ID
+  const missingUids = uids.filter(
+    (uid) =>
+      uid &&
+      !localUserInfoMap.value[uid] &&
+      !groupStore.getUserInfo(uid) &&
+      !loadingUsers.value.has(uid)
+  )
+
+  if (missingUids.length === 0) return
+
+  // 标记为加载中
+  missingUids.forEach((uid) => loadingUsers.value.add(uid))
+
+  try {
+    const users = await getUserByIds(missingUids)
+    if (users && users.length > 0) {
+      users.forEach((user) => {
+        localUserInfoMap.value[user.uid] = user
+      })
+    }
+  } catch (error) {
+    console.error('批量获取用户信息失败:', error)
+  } finally {
+    // 移除加载中标记
+    missingUids.forEach((uid) => loadingUsers.value.delete(uid))
+  }
+}
+
+/**
  * 获取当前用户查询视角
  * @param item 通知消息
  */
@@ -269,12 +320,12 @@ const getUserInfo = (item: any) => {
     case NoticeType.GROUP_MEMBER_DELETE:
     case NoticeType.GROUP_SET_ADMIN:
     case NoticeType.GROUP_RECALL_ADMIN:
-      return groupStore.getUserInfo(item.operateId)
+      return getCachedUserInfo(item.operateId)
     case NoticeType.ADD_ME:
     case NoticeType.GROUP_INVITE:
     case NoticeType.GROUP_INVITE_ME:
     case NoticeType.GROUP_APPLY:
-      return groupStore.getUserInfo(item.senderId)
+      return getCachedUserInfo(item.senderId)
   }
 }
 
@@ -364,19 +415,29 @@ onMounted(() => {
   contactStore.getApplyPage(props.type, true)
 })
 
-// 监听applyList变化，批量加载群组信息
+// 监听applyList变化，批量加载群组信息和用户信息
 watch(
   () => applyList.value,
   (newList) => {
+    // 批量加载群组信息
     const roomIds = uniq(newList.filter((item) => item.roomId && Number(item.roomId) > 0).map((item) => item.roomId))
-
     if (roomIds.length > 0) {
-      // 批量加载群组信息
       roomIds.forEach((roomId) => {
         if (!groupDetailsMap.value[roomId] && !loadingGroups.value.has(roomId)) {
           getGroupDetail(roomId)
         }
       })
+    }
+
+    // 批量加载用户信息
+    const allUserIds: string[] = []
+    newList.forEach((item) => {
+      if (item.senderId) allUserIds.push(item.senderId)
+      if (item.operateId) allUserIds.push(item.operateId)
+    })
+    const uniqueUserIds = uniq(allUserIds.filter((uid) => uid && uid !== userStore.userInfo?.uid))
+    if (uniqueUserIds.length > 0) {
+      fetchMissingUserInfo(uniqueUserIds)
     }
   },
   { immediate: true, deep: true }
