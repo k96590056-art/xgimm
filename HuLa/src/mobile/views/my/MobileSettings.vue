@@ -71,15 +71,28 @@ const { isTrayMenuShow } = storeToRefs(globalStore)
 const settingStore = useSettingStore()
 const userStore = useUserStore()
 
-// 通知开关状态
-const notificationEnabled = ref(true)
+// 通知开关状态（绑定到 settingStore）
+const notificationEnabled = computed({
+  get: () => settingStore.notification?.messageSound ?? true,
+  set: (val: boolean) => {
+    if (!settingStore.notification) {
+      settingStore.notification = { messageSound: val }
+    } else {
+      settingStore.notification.messageSound = val
+    }
+  }
+})
+
 // 用户名编辑状态
 const editedUsername = ref('')
+// 标记是否已初始化（避免删空后重新赋值）
+const isUsernameInitialized = ref(false)
 
-// 初始化用户名
+// 初始化用户名（只执行一次，使用 != null 允许空字符串）
 watchEffect(() => {
-  if (userStore.userInfo?.name && !editedUsername.value) {
+  if (userStore.userInfo?.name != null && !isUsernameInitialized.value) {
     editedUsername.value = userStore.userInfo.name
+    isUsernameInitialized.value = true
   }
 })
 

@@ -5,11 +5,55 @@ import { createEventHook } from '@vueuse/core'
 import { TauriCommand, UploadSceneEnum } from '@/enums'
 import { useConfigStore } from '@/stores/config'
 import { useUserStore } from '@/stores/user'
-import { extractFileName } from '@/utils/Formatting'
+import { extractFileName, sanitizeFileName } from '@/utils/Formatting'
 import { getImageDimensions } from '@/utils/ImageUtils'
 import { getQiniuToken, getUploadProvider } from '@/utils/ImRequestUtils'
 import { isAndroid, isMobile } from '@/utils/PlatformConstants'
 import { getWasmMd5 } from '@/utils/Md5Util'
+import {
+  getFileExtension,
+  IMAGE_MIME_TYPE_MAP,
+  VIDEO_MIME_TYPE_MAP,
+  AUDIO_MIME_TYPE_MAP
+} from '@/utils/FileType'
+
+/**
+ * 根据文件扩展名获取 MIME 类型
+ * @param fileName 文件名或路径
+ * @returns MIME 类型
+ */
+const getMimeTypeByFileName = (fileName: string): string => {
+  const extension = getFileExtension(fileName)
+  if (IMAGE_MIME_TYPE_MAP[extension]) {
+    return IMAGE_MIME_TYPE_MAP[extension]
+  }
+  if (VIDEO_MIME_TYPE_MAP[extension]) {
+    return VIDEO_MIME_TYPE_MAP[extension]
+  }
+  if (AUDIO_MIME_TYPE_MAP[extension]) {
+    return AUDIO_MIME_TYPE_MAP[extension]
+  }
+  // 其他常见类型
+  const otherMimeTypes: Record<string, string> = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    zip: 'application/zip',
+    rar: 'application/x-rar-compressed',
+    '7z': 'application/x-7z-compressed',
+    txt: 'text/plain',
+    json: 'application/json',
+    xml: 'application/xml',
+    html: 'text/html',
+    css: 'text/css',
+    js: 'application/javascript'
+  }
+  return otherMimeTypes[extension] || 'application/octet-stream'
+}
 
 /** 文件信息类型 */
 export type FileInfoType = {
@@ -97,11 +141,13 @@ export const useUpload = () => {
   const uploadFileWithTauriPut = async (targetUrl: string, file: File, contentType: string) => {
     const baseDir = isMobile() ? BaseDirectory.AppData : BaseDirectory.AppCache
     const baseDirName = isMobile() ? 'AppData' : 'AppCache'
-    const safeFileName = file.name.replace(/[\\/]/g, '_')
+    const safeFileName = sanitizeFileName(file.name)
     const tempPath = `temp-upload-${Date.now()}-${safeFileName}`
 
     try {
-      await writeFile(tempPath, file.stream(), { baseDir })
+      // 使用 arrayBuffer 而不是 stream()，因为 Android 上 stream() 可能不支持
+      const uploadArrayBuffer = await file.arrayBuffer()
+      await writeFile(tempPath, new Uint8Array(uploadArrayBuffer), { baseDir })
 
       const onProgress = new Channel<{ progressTotal: number; total: number }>()
       let lastProgress = -1
@@ -183,8 +229,9 @@ export const useUpload = () => {
       key = `${options.scene}/${account}/${fileHash}.${fileSuffix}`
       console.log('使用文件去重模式，文件哈希:', fileHash)
     } else {
-      // 使用时间戳生成唯一的文件名
-      key = `${options.scene}/${Date.now()}_${fileName}`
+      // 使用时间戳生成唯一的文件名（使用集中的文件名清理函数）
+      const safeFileName = sanitizeFileName(fileName)
+      key = `${options.scene}/${Date.now()}_${safeFileName}`
     }
     return key
   }
@@ -628,11 +675,12 @@ export const useUpload = () => {
               }
             }
 
+            const contentType = getMimeTypeByFileName(path)
             await invoke(TauriCommand.UPLOAD_FILE_PUT, {
               url: (cred as any).uploadUrl,
               path,
               ...(absolutePath ? {} : { baseDir: baseDirName }),
-              headers: { 'Content-Type': 'application/octet-stream' },
+              headers: { 'Content-Type': contentType },
               onProgress
             })
 
@@ -728,11 +776,12 @@ export const useUpload = () => {
           }
         }
 
+        const contentType = getMimeTypeByFileName(path)
         await invoke(TauriCommand.UPLOAD_FILE_PUT, {
           url: uploadUrl,
           path,
           ...(absolutePath ? {} : { baseDir: baseDirName }),
-          headers: { 'Content-Type': 'application/octet-stream' },
+          headers: { 'Content-Type': contentType },
           onProgress
         })
 

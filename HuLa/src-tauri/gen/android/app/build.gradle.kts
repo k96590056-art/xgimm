@@ -17,7 +17,8 @@ android {
     compileSdk = 36
     namespace = "com.xgimm.www"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        // 允许HTTP流量（MinIO使用HTTP）
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "com.xgimm.www"
         minSdk = 26
         targetSdk = 36

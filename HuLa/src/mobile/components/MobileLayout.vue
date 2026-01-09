@@ -23,6 +23,7 @@
 import { emitTo } from '@tauri-apps/api/event'
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { MsgEnum, NotificationTypeEnum, TauriCommand } from '@/enums'
+import { MSG_REPLY_TEXT_MAP } from '@/common/message'
 import { useMitt } from '@/hooks/useMitt'
 import type { MessageType } from '@/services/types'
 import { WsResponseMessageType } from '@/services/wsType'
@@ -36,6 +37,47 @@ import { isMobile, isWindows } from '@/utils/PlatformConstants'
 import { invokeSilently } from '@/utils/TauriInvokeHandler'
 import { useRoute } from 'vue-router'
 import { lightTheme } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
+// 消息通知渠道 ID
+const MESSAGE_CHANNEL_ID = 'xg_im_messages'
+
+// 缓存通知模块，避免重复动态导入
+let notificationModule: typeof import('@tauri-apps/plugin-notification') | null = null
+const getNotificationModule = async () => {
+  if (!notificationModule) {
+    notificationModule = await import('@tauri-apps/plugin-notification')
+  }
+  return notificationModule
+}
+
+// 初始化消息通知渠道（Android 需要高重要性渠道才能显示横幅通知）
+const initNotificationChannel = async () => {
+  if (!isMobile()) return
+
+  try {
+    const { createChannel, Importance } = await getNotificationModule()
+    await createChannel({
+      id: MESSAGE_CHANNEL_ID,
+      name: t('mobile_home.notification.channel_name'),
+      description: t('mobile_home.notification.channel_description'),
+      importance: Importance.High, // 高重要性 = Heads-up 横幅通知
+      vibration: true,
+      lights: true
+    })
+    console.log('[MobileLayout] 消息通知渠道创建成功')
+  } catch (error) {
+    console.warn('[MobileLayout] 创建通知渠道失败:', error)
+  }
+}
+
+// 组件挂载时初始化通知渠道
+onMounted(() => {
+  initNotificationChannel()
+})
+
 interface MobileLayoutProps {
   /** 是否应用顶部安全区域 */
   safeAreaTop?: boolean
@@ -161,10 +203,12 @@ useMitt.on(WsResponseMessageType.RECEIVE_MESSAGE, async (data: MessageType) => {
     return
   }
   console.log('[mobile/layout] 收到的消息：', data)
+
   // 只有在聊天室页面且当前选中的会话就是消息来源的会话时，才不增加未读数
+  const isActiveChatView =
+    route.path.startsWith('/mobile/chatRoom') && globalStore.currentSessionRoomId === data.message.roomId
   chatStore.pushMsg(data, {
-    isActiveChatView:
-      route.path.startsWith('/mobile/chatRoom') && globalStore.currentSessionRoomId === data.message.roomId,
+    isActiveChatView,
     activeRoomId: globalStore.currentSessionRoomId || ''
   })
   data.message.sendTime = new Date(data.message.sendTime).getTime()
@@ -222,6 +266,30 @@ useMitt.on(WsResponseMessageType.RECEIVE_MESSAGE, async (data: MessageType) => {
 
         if (currentWindow.label === 'mobile-home') {
           await emitTo('notify', 'notify_content', data)
+        }
+      }
+
+      // 移动端发送系统通知（只有当用户不在当前聊天室时才发送，避免重复打扰）
+      if (isMobile() && !isActiveChatView) {
+        try {
+          // 获取发送者名称（优先使用会话名称，因为 WebSocket 消息中 fromUser 可能没有 username）
+          const senderName = session?.name || data?.fromUser?.username || t('mobile_home.notification.new_message')
+          // 获取消息内容预览（文本消息显示内容，其他类型使用映射表）
+          const msgType = data.message.type
+          const messageContent =
+            (msgType === MsgEnum.TEXT && data.message.body.content) ||
+            MSG_REPLY_TEXT_MAP[msgType] ||
+            '[消息]'
+
+          // 使用缓存的通知模块（避免重复动态导入）
+          const { sendNotification } = await getNotificationModule()
+          await sendNotification({
+            channelId: MESSAGE_CHANNEL_ID,
+            title: senderName,
+            body: messageContent
+          })
+        } catch (error) {
+          console.warn('发送移动端通知失败:', error)
         }
       }
     }

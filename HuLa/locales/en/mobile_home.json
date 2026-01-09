@@ -6,6 +6,11 @@
     "unread": "Unread",
     "delete": "Delete"
   },
+  "notification": {
+    "channel_name": "Messages",
+    "channel_description": "Notifications for new messages",
+    "new_message": "New Message"
+  },
   "input": {
     "search": "Search"
   },

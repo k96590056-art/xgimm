@@ -1,3 +1,14 @@
+/* 移动端键盘适配 - 允许视口随键盘调整 */
+html,
+body {
+  /* 覆盖 desktop.scss 的 overflow: hidden，让 Android adjustResize 生效 */
+  overflow: auto !important;
+  /* 使用 100% 而不是 100vh，避免移动端键盘问题 */
+  height: 100% !important;
+  /* 确保内容可以随键盘调整 */
+  min-height: 100%;
+}
+
 /* 只有当安全区域不为0时才应用 */
 @supports (top: env(safe-area-inset-top)) {
   :root {

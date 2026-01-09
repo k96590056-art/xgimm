@@ -575,7 +575,9 @@ export enum TauriCommand {
   /** 通过 Rust 端 PUT 上传本地文件 */
   UPLOAD_FILE_PUT = 'upload_file_put',
   /** 通过 Rust 端七牛分片上传本地文件 */
-  QINIU_UPLOAD_RESUMABLE = 'qiniu_upload_resumable'
+  QINIU_UPLOAD_RESUMABLE = 'qiniu_upload_resumable',
+  /** 显示消息通知 (移动端) */
+  SHOW_MESSAGE_NOTIFICATION = 'show_message_notification_command'
 }
 
 // 通话状态枚举

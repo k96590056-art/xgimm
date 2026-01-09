@@ -1,0 +1,29 @@
+Please review these code changes for quality, security, and best practices:
+
+## Changes Made
+
+### 1. MessageStrategy.ts - Added sanitizeFileName function
+```typescript
+const sanitizeFileName = (name: string): string => {
+  return name
+    .replace(/\s+/g, '_')
+    .replace(/[<>:"/\\|?*]/g, '_')
+}
+```
+
+### 2. MessageStrategy.ts - Applied sanitizeFileName to temp paths (4 places)
+- temp-image paths now use sanitizeFileName(file.name)
+- temp-file paths now use sanitizeFileName(validatedFile.name)
+- temp-video paths now use sanitizeFileName(file.name)
+- temp-thumbnail paths now use sanitizeFileName(thumbnailFile.name)
+
+### 3. useUpload.ts - Updated safeFileName regex
+Added .replace(/\s+/g, '_') to handle spaces
+
+### 4. useUpload.ts - Updated generateHashKey function
+Added filename sanitization for non-deduplication mode
+
+## Problem Being Fixed
+Images with filenames containing spaces (like '屏幕截图 2026-01-08 200257.png') were causing broken image display because the MinIO URL was malformed (spaces in URL cause 'Malformed URL' errors).
+
+Please identify any issues, security concerns, or suggestions for improvement.

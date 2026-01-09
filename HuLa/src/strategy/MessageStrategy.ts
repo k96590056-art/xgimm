@@ -7,7 +7,7 @@ import { parseInnerText } from '@/hooks/useCommon.ts'
 import { type UploadOptions, UploadProviderEnum, useUpload } from '@/hooks/useUpload'
 import type { MessageType } from '@/services/types.ts'
 import { fixFileMimeType, isVideoUrl } from '@/utils/FileType'
-import { getMimeTypeFromExtension, removeTag } from '@/utils/Formatting'
+import { getMimeTypeFromExtension, removeTag, sanitizeFileName } from '@/utils/Formatting'
 import { getImageDimensions } from '@/utils/ImageUtils'
 import { isMobile } from '@/utils/PlatformConstants'
 import { generateVideoThumbnail } from '@/utils/VideoThumbnail'
@@ -258,9 +258,11 @@ class ImageMessageStrategyImpl extends AbstractMessageStrategy {
       const { width, height, previewUrl } = await this.getImageInfo(file)
 
       // 将文件保存到缓存目录
-      const tempPath = `temp-image-${Date.now()}-${file.name}`
+      const tempPath = `temp-image-${Date.now()}-${sanitizeFileName(file.name)}`
       const baseDir = isMobile() ? BaseDirectory.AppData : BaseDirectory.AppCache
-      await writeFile(tempPath, file.stream(), { baseDir })
+      // 使用 arrayBuffer 而不是 stream()，因为 Android 上 stream() 可能不支持
+      const arrayBuffer = await file.arrayBuffer()
+      await writeFile(tempPath, new Uint8Array(arrayBuffer), { baseDir })
 
       return {
         type: this.msgType,
@@ -632,11 +634,13 @@ class FileMessageStrategyImpl extends AbstractMessageStrategy {
     const validatedFile = await this.validateFile(file)
 
     // 创建临时路径用于上传
-    const tempPath = `temp-file-${Date.now()}-${validatedFile.name}`
+    const tempPath = `temp-file-${Date.now()}-${sanitizeFileName(validatedFile.name)}`
 
     // 将文件保存到临时位置
     const baseDir = isMobile() ? BaseDirectory.AppData : BaseDirectory.AppCache
-    await writeFile(tempPath, validatedFile.stream(), { baseDir })
+    // 使用 arrayBuffer 而不是 stream()，因为 Android 上 stream() 可能不支持
+    const fileArrayBuffer = await validatedFile.arrayBuffer()
+    await writeFile(tempPath, new Uint8Array(fileArrayBuffer), { baseDir })
 
     return {
       type: this.msgType,
@@ -858,9 +862,11 @@ class VideoMessageStrategyImpl extends AbstractMessageStrategy {
       const thumbnail = await generateVideoThumbnail(validatedFile)
 
       // 将文件保存到缓存目录
-      const tempPath = `temp-video-${Date.now()}-${file.name}`
+      const tempPath = `temp-video-${Date.now()}-${sanitizeFileName(file.name)}`
       const baseDir = isMobile() ? BaseDirectory.AppData : BaseDirectory.AppCache
-      await writeFile(tempPath, validatedFile.stream(), { baseDir })
+      // 使用 arrayBuffer 而不是 stream()，因为 Android 上 stream() 可能不支持
+      const videoArrayBuffer = await validatedFile.arrayBuffer()
+      await writeFile(tempPath, new Uint8Array(videoArrayBuffer), { baseDir })
 
       return {
         type: this.msgType,
@@ -979,7 +985,7 @@ class VideoMessageStrategyImpl extends AbstractMessageStrategy {
   ): Promise<{ uploadUrl: string; downloadUrl: string; config?: any }> {
     try {
       // 创建临时文件路径用于上传
-      const tempPath = `temp-thumbnail-${Date.now()}-${thumbnailFile.name}`
+      const tempPath = `temp-thumbnail-${Date.now()}-${sanitizeFileName(thumbnailFile.name)}`
 
       const uploadOptions: UploadOptions = {
         provider: options?.provider || UploadProviderEnum.QINIU,
@@ -1010,11 +1016,13 @@ class VideoMessageStrategyImpl extends AbstractMessageStrategy {
   ): Promise<{ qiniuUrl?: string } | void> {
     try {
       // 将File对象写入临时文件，然后使用现有的doUpload方法
-      const tempPath = `temp-thumbnail-${Date.now()}-${thumbnailFile.name}`
+      const tempPath = `temp-thumbnail-${Date.now()}-${sanitizeFileName(thumbnailFile.name)}`
 
       // 写入临时文件
       const baseDir = isMobile() ? BaseDirectory.AppData : BaseDirectory.AppCache
-      await writeFile(tempPath, thumbnailFile.stream(), { baseDir })
+      // 使用 arrayBuffer 而不是 stream()，因为 Android 上 stream() 可能不支持
+      const thumbArrayBuffer = await thumbnailFile.arrayBuffer()
+      await writeFile(tempPath, new Uint8Array(thumbArrayBuffer), { baseDir })
 
       // enableDeduplication启用文件去重，使用哈希值计算
       const result = await this.uploadHook.doUpload(tempPath, uploadUrl, { ...options, enableDeduplication: true })

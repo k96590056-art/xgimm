@@ -294,6 +294,7 @@ const {
   send,
   sendLocationDirect,
   sendFilesDirect,
+  sendImagesDirect,
   sendVoiceDirect,
   sendEmojiDirect,
   personList,
@@ -675,6 +676,7 @@ defineExpose({
   handleVoiceCancel,
   sendVoiceDirect,
   sendFilesDirect,
+  sendImagesDirect,
   sendEmojiDirect,
   handleLocationSelected
 })

@@ -10,6 +10,24 @@ import { useUpload } from './useUpload'
 // 导入worker计时器
 let timerWorker: Worker | null = null
 
+/**
+ * 请求麦克风权限（Android 运行时权限）
+ * 使用 Web API getUserMedia 来触发系统权限请求对话框
+ */
+const requestMicrophonePermission = async (): Promise<boolean> => {
+  try {
+    // 使用 Web API 请求麦克风权限
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    // 获取权限后立即停止所有音轨，避免占用麦克风
+    stream.getTracks().forEach((track) => track.stop())
+    console.log('[VoiceRecord] 麦克风权限已获取')
+    return true
+  } catch (error) {
+    console.error('[VoiceRecord] 麦克风权限请求失败:', error)
+    return false
+  }
+}
+
 type VoiceRecordRustOptions = {
   onStart?: () => void
   onStop?: (audioBlob: Blob, duration: number, localPath: string) => void
@@ -33,6 +51,16 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
       // 如果有录音正在进行，先停止再开始新录音
       if (isRecording.value) {
         await stopRecordingAudio()
+      }
+
+      // 在移动端先请求麦克风权限
+      if (isMobile()) {
+        const hasPermission = await requestMicrophonePermission()
+        if (!hasPermission) {
+          window.$message?.error('无法获取麦克风权限，请在系统设置中允许应用使用麦克风')
+          options.onError?.('麦克风权限被拒绝')
+          return
+        }
       }
 
       // 调用Rust后端开始录音
@@ -146,14 +174,16 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
           compressionRatio: `${compressionRatio}%`
         })
 
-        // 立即回调显示录音结果，传递压缩后的音频
-        options.onStop?.(compressedBlob, duration, audioPath)
-
-        // 异步处理缓存，不阻塞UI更新
-        saveAudioToCache(compressedBlob, duration).catch((error) => {
-          console.error('缓存音频文件失败:', error)
-          // 缓存失败不影响主要功能，只记录错误
-        })
+        try {
+          // 保存音频到缓存并获取最终路径
+          const finalPath = await saveAudioToCache(compressedBlob)
+          // 缓存成功后，使用最终路径进行回调（只调用一次）
+          options.onStop?.(compressedBlob, duration, finalPath)
+        } catch (error) {
+          console.error('保存音频文件失败:', error)
+          window.$message?.error('音频保存失败')
+          options.onError?.('音频保存失败')
+        }
 
         // 删除原始的wav文件，释放磁盘空间
         try {
@@ -216,8 +246,8 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
     }
   }
 
-  /** 保存音频到本地缓存 */
-  const saveAudioToCache = async (audioBlob: Blob, duration: number) => {
+  /** 保存音频到本地缓存并返回路径 */
+  const saveAudioToCache = async (audioBlob: Blob): Promise<string> => {
     const getFileHashName = async (tempFileName: string) => {
       const audioFile = new File([audioBlob], tempFileName)
       // 计算文件真正的资源哈希文件名
@@ -230,47 +260,40 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
       return resourceFileName.split('/').pop() as string
     }
 
-    try {
-      const userUid = userStore.userInfo!.uid
-      if (!userUid) {
-        throw new Error('用户未登录')
-      }
-
-      // 生成文件名
-      const timestamp = Date.now()
-      const fileName = `voice_${timestamp}.mp3`
-
-      // 获取缓存路径
-      const audioFolder = 'audio'
-      const cachePath = getImageCache(audioFolder, userUid.toString())
-
-      const fileHashName = await getFileHashName(fileName)
-      const fullPath = cachePath + fileHashName
-
-      // 确保目录存在
-      const baseDir = isMobile() ? BaseDirectory.AppData : BaseDirectory.AppCache
-      const dirExists = await exists(cachePath, { baseDir })
-      if (!dirExists) {
-        await mkdir(cachePath, { baseDir, recursive: true })
-      }
-
-      // 将Blob转换为ArrayBuffer
-      const arrayBuffer = await audioBlob.arrayBuffer()
-
-      // 保存到本地文件
-      const file = await create(fullPath, { baseDir })
-      await file.write(new Uint8Array(arrayBuffer))
-      await file.close()
-
-      console.log('音频文件已保存到:', fullPath)
-
-      // 调用回调，传递本地路径
-      options.onStop?.(audioBlob, duration, fullPath)
-    } catch (error) {
-      console.error('保存音频文件失败:', error)
-      window.$message?.error('音频保存失败')
-      options.onError?.('音频保存失败')
+    const userUid = userStore.userInfo!.uid
+    if (!userUid) {
+      throw new Error('用户未登录')
     }
+
+    // 生成文件名
+    const timestamp = Date.now()
+    const fileName = `voice_${timestamp}.mp3`
+
+    // 获取缓存路径
+    const audioFolder = 'audio'
+    const cachePath = getImageCache(audioFolder, userUid.toString())
+
+    const fileHashName = await getFileHashName(fileName)
+    const fullPath = `${cachePath}${fileHashName}`
+
+    // 确保目录存在
+    const baseDir = isMobile() ? BaseDirectory.AppData : BaseDirectory.AppCache
+    const dirExists = await exists(cachePath, { baseDir })
+    if (!dirExists) {
+      await mkdir(cachePath, { baseDir, recursive: true })
+    }
+
+    // 将Blob转换为ArrayBuffer
+    const arrayBuffer = await audioBlob.arrayBuffer()
+
+    // 保存到本地文件
+    const file = await create(fullPath, { baseDir })
+    await file.write(new Uint8Array(arrayBuffer))
+    await file.close()
+
+    console.log('音频文件已保存到:', fullPath)
+
+    return fullPath
   }
 
   // 格式化录音时间

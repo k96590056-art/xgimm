@@ -205,7 +205,7 @@
             <VoicePanel @cancel="handleMobileVoiceCancel" @send="handleMobileVoiceSend" />
           </div>
           <div v-else-if="mobilePanelState === MobilePanelStateEnum.MORE" key="more" class="panel-content">
-            <More @sendFiles="handleMoreSendFiles" />
+            <More @sendFiles="handleMoreSendFiles" @sendImages="handleMoreSendImages" />
           </div>
         </Transition>
       </div>
@@ -647,6 +647,16 @@ const handleMoreSendFiles = async (files: File[]) => {
   } catch (error) {
     console.error('移动端发送文件失败:', error)
     window.$message?.error?.('发送文件失败')
+  }
+}
+
+const handleMoreSendImages = async (files: File[]) => {
+  if (!files || files.length === 0) return
+  try {
+    await MsgInputRef.value?.sendImagesDirect(files)
+  } catch (error) {
+    console.error('移动端发送图片失败:', error)
+    window.$message?.error?.('发送图片失败')
   }
 }
 

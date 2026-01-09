@@ -1,5 +1,6 @@
 import { appDataDir, join, resourceDir } from '@tauri-apps/api/path'
 import { BaseDirectory, exists, writeFile } from '@tauri-apps/plugin-fs'
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 import { sumBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { StoresEnum } from '@/enums'
@@ -223,8 +224,8 @@ export const useFileDownloadStore = defineStore(
         const downloadsDir = await userStore.getUserRoomDir()
         const filePath = await join(downloadsDir, fileName)
 
-        // 下载文件
-        const response = await fetch(fileUrl)
+        // 下载文件 - 使用 Tauri HTTP 插件避免 WebView CORS 限制
+        const response = await tauriFetch(fileUrl)
         if (!response.ok) {
           throw new Error(`下载失败: ${response.status} ${response.statusText}`)
         }

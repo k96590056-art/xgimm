@@ -48,10 +48,13 @@ class KeepAliveService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_HIGH  // 高优先级：默认开启，有声音和横幅通知
             ).apply {
                 description = "XG-IM 应用保活服务"
                 setShowBadge(false)
+                // 虽然是高优先级，但禁用声音和震动，避免持续打扰用户
+                setSound(null, null)
+                enableVibration(false)
                 lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
             val notificationManager = getSystemService(NotificationManager::class.java)
@@ -78,7 +81,7 @@ class KeepAliveService : Service() {
             .setSmallIcon(smallIcon)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)  // 与 channel 保持一致，兼容 Android O 以下
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
     }

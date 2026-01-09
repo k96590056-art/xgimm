@@ -98,11 +98,14 @@ const options = ref([
 ])
 
 // 将数据分页，每页8个（2行4列）
+// 只包含 isShow() 返回 true 的项，避免隐藏项占用空间
 const pages = computed(() => {
   const pageSize = 8
   const result: any[][] = []
-  for (let i = 0; i < options.value.length; i += pageSize) {
-    result.push(options.value.slice(i, i + pageSize))
+  // 先过滤出需要显示的项
+  const visibleOptions = options.value.filter((item) => item.isShow())
+  for (let i = 0; i < visibleOptions.length; i += pageSize) {
+    result.push(visibleOptions.slice(i, i + pageSize))
   }
   return result
 })
@@ -127,7 +130,10 @@ const startCall = (callType: CallTypeEnum) => {
   })
 }
 
-const emit = defineEmits<(e: 'sendFiles', files: File[]) => void>()
+const emit = defineEmits<{
+  (e: 'sendFiles', files: File[]): void
+  (e: 'sendImages', files: File[]): void
+}>()
 
 const selectedFiles = ref<File[]>([])
 
@@ -209,7 +215,7 @@ const afterReadImage = (fileList: UploaderFileListItem | UploaderFileListItem[])
   }
 
   if (selectedFiles.value.length > 0) {
-    emit('sendFiles', [...selectedFiles.value])
+    emit('sendImages', [...selectedFiles.value])
     selectedFiles.value = []
     uploadFileList.value = []
   }

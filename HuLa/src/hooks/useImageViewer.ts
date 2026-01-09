@@ -8,6 +8,7 @@ import { useImageViewer as useImageViewerStore } from '@/stores/imageViewer'
 import type { FilesMeta } from '@/services/types'
 import { extractFileName } from '@/utils/Formatting'
 import { getFilesMeta } from '@/utils/PathUtil'
+import { isMobile } from '@/utils/PlatformConstants'
 
 type WorkerResponse = {
   success: boolean
@@ -208,17 +209,26 @@ export const useImageViewer = () => {
     }
   }
 
-  const scheduleDownload = (originalUrl: string) => {
+  const scheduleDownload = async (originalUrl: string) => {
     const fileName = extractFileName(originalUrl) || `image-${Date.now()}.png`
-    downloadImageWithWorker(originalUrl, fileName)
-      .then((absolutePath) => {
-        if (absolutePath) {
-          replaceImageWithLocalPath(originalUrl, absolutePath)
-        }
-      })
-      .catch((error) => {
-        console.error('图片下载失败:', error)
-      })
+
+    try {
+      let absolutePath: string | null = null
+
+      if (isMobile()) {
+        // 移动端：直接使用 fileDownloadStore 下载（使用 Tauri HTTP 插件，避免 CORS 问题）
+        absolutePath = await fileDownloadStore.downloadFile(originalUrl, fileName)
+      } else {
+        // 桌面端：使用 Worker 下载（不受 CORS 限制）
+        absolutePath = await downloadImageWithWorker(originalUrl, fileName)
+      }
+
+      if (absolutePath) {
+        replaceImageWithLocalPath(originalUrl, absolutePath)
+      }
+    } catch (error) {
+      console.error('图片下载失败:', error)
+    }
   }
 
   const downloadOriginalByIndex = (index: number) => {

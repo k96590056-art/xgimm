@@ -1277,6 +1277,87 @@ export const useMsgInput = (messageInputDom: Ref) => {
   }
 
   /**
+   * 直接发送图片的函数（移动端专用）
+   * @param files 图片文件数组
+   */
+  const sendImagesDirect = async (files: File[]) => {
+    const targetRoomId = globalStore.currentSessionRoomId
+    const messageStrategy = messageStrategyMap[MsgEnum.IMAGE]
+
+    // 控制并发数，避免同时上传过多图片
+    const limit = pLimit(3)
+
+    const tasks = files.map((file) => {
+      return limit(async () => {
+        const tempMsgId = 'T' + Date.now().toString() + Math.random().toString(36).slice(2, 8)
+        let previewUrl: string | null = null
+
+        try {
+          // 使用 IMAGE 策略处理图片（验证、获取尺寸、保存临时文件）
+          const msg = await messageStrategy.getMsg('', reply.value, [file])
+          previewUrl = msg.url // 保存预览URL以便清理
+          const messageBody = messageStrategy.buildMessageBody(msg, reply)
+
+          // 创建临时消息对象
+          const tempMsg = messageStrategy.buildMessageType(tempMsgId, messageBody, globalStore, userUid)
+          tempMsg.message.status = MessageStatusEnum.SENDING
+          tempMsg.message.roomId = targetRoomId
+
+          // 添加到消息列表（先显示预览）
+          chatStore.pushMsg(tempMsg)
+          useMitt.emit(MittEnum.CHAT_SCROLL_BOTTOM)
+
+          // 上传图片到七牛云
+          const { uploadUrl, downloadUrl, config } = await messageStrategy.uploadFile(msg.path, {
+            provider: UploadProviderEnum.QINIU
+          })
+          const doUploadResult = await messageStrategy.doUpload(msg.path, uploadUrl, config)
+
+          // 更新消息体中的URL为服务器URL
+          messageBody.url =
+            config?.provider && config?.provider === UploadProviderEnum.QINIU ? doUploadResult?.qiniuUrl : downloadUrl
+          delete messageBody.path
+
+          // 更新临时消息的URL
+          chatStore.updateMsg({
+            msgId: tempMsgId,
+            body: { ...messageBody },
+            status: MessageStatusEnum.SENDING
+          })
+
+          // 发送消息到服务器
+          await sendWithTracking({
+            tempMsgId,
+            payload: {
+              id: tempMsgId,
+              roomId: targetRoomId,
+              msgType: MsgEnum.IMAGE,
+              body: messageBody
+            }
+          })
+        } catch (error) {
+          console.error('[useMsgInput] 图片发送失败:', error)
+          window.$message?.error?.(`图片发送失败: ${file.name}`)
+
+          // 更新消息状态为失败
+          chatStore.updateMsg({
+            msgId: tempMsgId,
+            status: MessageStatusEnum.FAILED
+          })
+        } finally {
+          // 无论成功或失败，都释放预览URL，防止内存泄漏
+          if (previewUrl && previewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previewUrl)
+          }
+        }
+      })
+    })
+
+    // 等待所有图片完成
+    await Promise.allSettled(tasks)
+  }
+
+  /**
    * 直接发送表情包的函数（移动端专用）
    * @param emojiUrl 表情包URL
    */
@@ -1330,6 +1411,7 @@ export const useMsgInput = (messageInputDom: Ref) => {
     stripHtml,
     sendLocationDirect,
     sendFilesDirect,
+    sendImagesDirect,
     sendVoiceDirect,
     sendEmojiDirect,
     personList,

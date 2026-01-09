@@ -125,3 +125,37 @@ export const formatBottomText = (text: string, maxLength = 6, omission = '...') 
 
   return `${text.slice(0, cutIndex + 1).trimEnd()}${omission}`
 }
+
+/**
+ * 清理文件名，确保与 MinIO 对象存储兼容
+ * MinIO 不支持中文和特殊字符，对于含有非ASCII字符的文件名，生成纯数字文件名
+ * @param name 原始文件名
+ * @returns MinIO 兼容的安全文件名（纯ASCII）
+ * @example
+ * sanitizeFileName('屏幕截图 2026-01-08.png') // '1736345678901.png' (时间戳)
+ * sanitizeFileName('test file.png') // 'test_file.png'
+ */
+export const sanitizeFileName = (name: string): string => {
+  // 分离文件名和扩展名
+  const lastDotIndex = name.lastIndexOf('.')
+  const baseName = lastDotIndex > 0 ? name.substring(0, lastDotIndex) : name
+  const extension = lastDotIndex > 0 ? name.substring(lastDotIndex) : ''
+
+  // 对文件名部分进行处理
+  const sanitized = baseName
+    .replace(/\s+/g, '_') // 替换空格为下划线
+    .replace(/[<>:"/\\|?*]/g, '_') // 替换Windows不安全字符
+
+  // 检查是否包含非ASCII字符（如中文）
+  // eslint-disable-next-line no-control-regex
+  const hasNonAscii = /[^\x00-\x7F]/.test(sanitized)
+
+  if (hasNonAscii) {
+    // 对于含有中文等非ASCII字符的文件名，使用时间戳+随机数生成纯数字文件名
+    // 这样可以避免URL编码/解码导致的问题
+    const randomSuffix = Math.random().toString(36).substring(2, 8)
+    return `${Date.now()}_${randomSuffix}${extension}`
+  }
+
+  return sanitized + extension
+}
