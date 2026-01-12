@@ -1,6 +1,6 @@
 <template>
   <div class="login">
-    <h1>{{ t('login') }} HuLa</h1>
+    <h1>{{ t('login') }} XG-IM</h1>
     <!-- 登录错误提示框 -->
     <div style="padding: 0 10px 10px 5px">
       <AlertIze
@@ -131,7 +131,7 @@
           </template>
         </n-popover>
       </div>
-      <p>Copyright © 2025-2026 HuLa.All Rights Reserved.</p>
+      <p>Copyright © 2025-2026 XG-IM.All Rights Reserved.</p>
     </div>
   </div>
 </template>

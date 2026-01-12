@@ -9,6 +9,14 @@ body {
   min-height: 100%;
 }
 
+/* 覆盖 App.vue 根元素的 h-100vh，让键盘弹出时布局能正确调整 */
+#app,
+#app > div {
+  height: 100% !important;
+  min-height: 100%;
+  max-height: 100%;
+}
+
 /* 只有当安全区域不为0时才应用 */
 @supports (top: env(safe-area-inset-top)) {
   :root {

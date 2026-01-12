@@ -62,7 +62,7 @@
           <div class="preview-aside">
             <div class="aside-box">
               <img src="/logo.png" alt="" style="width: 15px; height: 12px" />
-              <span style="font-size: 8px; transform: scale(1)">HuLa</span>
+              <span style="font-size: 8px; transform: scale(1)">XG-IM</span>
             </div>
           </div>
           <n-space vertical :size="5">

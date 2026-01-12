@@ -406,8 +406,12 @@ const isSpeakerOn = ref(true)
 // 视频通话时默认开启视频，语音通话时默认关闭
 const isVideoOn = ref(callType === CallTypeEnum.VIDEO)
 const groupStore = useGroupStore()
-// 获取远程用户信息
-const remoteUserInfo = groupStore.getUserInfo(remoteUserId)!
+// 获取远程用户信息（添加空值保护）
+const remoteUserInfo = computed(() => groupStore.getUserInfo(remoteUserId) || {
+  uid: remoteUserId,
+  name: t('message.call_window.unknown_user'),
+  avatar: ''
+})
 // 视频元素引用
 const mainVideoRef = ref<HTMLVideoElement>()
 const pipVideoRef = ref<HTMLVideoElement>()
@@ -440,7 +444,7 @@ const hangUp = (status: CallResponseStatus = CallResponseStatus.DROPPED) => {
   handleCallResponse(status)
 }
 
-const avatarSrc = computed(() => AvatarUtils.getAvatarUrl(remoteUserInfo.avatar as string))
+const avatarSrc = computed(() => AvatarUtils.getAvatarUrl(remoteUserInfo.value.avatar as string))
 
 const callStatusText = computed(() => {
   switch (connectionStatus.value) {

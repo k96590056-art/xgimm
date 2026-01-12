@@ -3,7 +3,7 @@
     <div class="aside-head">
       <img id="unfold-img" v-if="collapsed" src="/logo.png" alt="" />
       <img id="collapsed-img" v-else src="/logo.png" alt="" />
-      <p v-show="!collapsed" class="aside-title">HuLa</p>
+      <p v-show="!collapsed" class="aside-title">XG-IM</p>
     </div>
     <n-config-provider :theme="ASIDE_COLOR ? darkTheme : undefined">
       <n-layout has-sider>

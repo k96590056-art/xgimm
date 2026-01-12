@@ -41,6 +41,8 @@ onMounted(() => {
     })
   }
 
+  // iOS 使用 Tauri 原生键盘调整
+  // Android 在 MainActivity.kt 中通过 WindowInsets 处理
   if (isIOS()) {
     invoke('set_webview_keyboard_adjustment', { enabled: true })
   }
