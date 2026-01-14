@@ -7,24 +7,35 @@ import { isMobile } from '@/utils/PlatformConstants'
 import { UploadSceneEnum } from '../enums'
 import { useUpload } from './useUpload'
 
-// 导入worker计时器
-let timerWorker: Worker | null = null
+// Worker 计时器消息 ID
+const TIMER_MSG_ID = 'voiceRecordTimer'
 
 /**
  * 请求麦克风权限（Android 运行时权限）
  * 使用 Web API getUserMedia 来触发系统权限请求对话框
  */
 const requestMicrophonePermission = async (): Promise<boolean> => {
+  // 检查 mediaDevices API 是否可用
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.warn('[VoiceRecord] mediaDevices API 不可用，跳过权限预请求')
+    return true // 返回 true 让 Rust 插件自己处理
+  }
+
   try {
-    // 使用 Web API 请求麦克风权限
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    // 获取权限后立即停止所有音轨，避免占用麦克风
+    // 获取权限后立即停止所有音轨
     stream.getTracks().forEach((track) => track.stop())
     console.log('[VoiceRecord] 麦克风权限已获取')
     return true
-  } catch (error) {
-    console.error('[VoiceRecord] 麦克风权限请求失败:', error)
-    return false
+  } catch (error: any) {
+    // 只有用户明确拒绝权限时才返回 false
+    if (error?.name === 'NotAllowedError') {
+      console.error('[VoiceRecord] 用户拒绝了麦克风权限')
+      return false
+    }
+    // 其他错误（如设备不支持）不阻止录音，让 Rust 插件处理
+    console.warn('[VoiceRecord] 权限预请求出现非致命错误:', error?.message)
+    return true
   }
 }
 
@@ -41,15 +52,18 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
   const recordingTime = ref(0)
   const audioLevel = ref(0)
   const startTime = ref(0)
-  const audioMonitor = ref<NodeJS.Timeout | null>(null)
-  const timerMsgId = 'voiceRecordTimer' // worker计时器的消息ID
+  // 每个 hook 实例独立的 worker，避免多组件冲突
+  const timerWorker = ref<Worker | null>(null)
   const { generateHashKey } = useUpload()
 
   /** 开始录音 */
   const startRecordingAudio = async () => {
+    console.log('[VoiceRecord] ========== 开始录音流程 ==========')
+
     try {
       // 如果有录音正在进行，先停止再开始新录音
       if (isRecording.value) {
+        console.log('[VoiceRecord] 检测到已有录音，先停止')
         await stopRecordingAudio()
       }
 
@@ -63,86 +77,96 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
         }
       }
 
-      // 调用Rust后端开始录音
+      // 调用 Rust 后端开始录音
+      console.log('[VoiceRecord] 调用 Rust startRecording...')
       await startRecording()
+      console.log('[VoiceRecord] Rust startRecording 成功')
 
       isRecording.value = true
       startTime.value = Date.now()
       recordingTime.value = 0
 
       // 初始化worker计时器
-      if (!timerWorker) {
-        timerWorker = new Worker(new URL('../workers/timer.worker.ts', import.meta.url))
+      if (!timerWorker.value) {
+        timerWorker.value = new Worker(new URL('../workers/timer.worker.ts', import.meta.url))
 
         // 监听worker消息
-        timerWorker.onmessage = (e) => {
+        timerWorker.value.onmessage = (e) => {
           const { type, msgId } = e.data
 
-          if (type === 'timeout' && msgId === timerMsgId) {
+          if (type === 'timeout' && msgId === TIMER_MSG_ID) {
             // 每秒更新录音时间
             if (isRecording.value) {
               const currentTime = Math.floor((Date.now() - startTime.value) / 1000)
               recordingTime.value = currentTime
 
               // 检查是否达到60秒限制
-              if (currentTime === 59) {
+              if (currentTime >= 59) {
                 // 达到60秒，自动停止录音
                 stopRecordingAudio()
                 return
               }
 
               // 重新启动1秒定时器
-              timerWorker?.postMessage({
+              timerWorker.value?.postMessage({
                 type: 'startTimer',
-                msgId: timerMsgId,
+                msgId: TIMER_MSG_ID,
                 duration: 1000
               })
             }
           }
         }
 
-        timerWorker.onerror = (error) => {
+        timerWorker.value.onerror = (error) => {
           console.error('[VoiceRecord Worker Error]', error)
         }
       }
 
       // 开始worker计时
-      timerWorker.postMessage({
+      timerWorker.value.postMessage({
         type: 'startTimer',
-        msgId: timerMsgId,
+        msgId: TIMER_MSG_ID,
         duration: 1000
       })
 
       options.onStart?.()
-    } catch (error) {
-      console.error('开始录音失败:', error)
-      window.$message?.error('录音失败')
-      options.onError?.('录音失败')
+      console.log('[VoiceRecord] 录音已开始')
+    } catch (error: any) {
+      console.error('[VoiceRecord] 开始录音出错:', error?.message || error)
+
+      // 只有在录音确实没有开始时才显示错误
+      // 检查 isRecording 状态来判断
+      if (!isRecording.value) {
+        window.$message?.error('录音失败，请检查麦克风权限')
+        options.onError?.('录音失败')
+      }
     }
   }
 
   /** 停止录音 */
   const stopRecordingAudio = async () => {
+    console.log('[VoiceRecord] ========== 停止录音流程 ==========')
     try {
-      if (!isRecording.value) return
+      if (!isRecording.value) {
+        console.log('[VoiceRecord] 未在录音中，直接返回')
+        return
+      }
 
       // 调用Rust后端停止录音
+      console.log('[VoiceRecord] 调用 Rust stopRecording...')
       const audioPath = await stopRecording()
+      console.log('[VoiceRecord] Rust stopRecording 返回路径:', audioPath)
 
       isRecording.value = false
       const duration = (Date.now() - startTime.value) / 1000
+      console.log('[VoiceRecord] 录音时长:', duration, '秒')
 
       // 清理worker定时器
-      if (timerWorker) {
-        timerWorker.postMessage({
+      if (timerWorker.value) {
+        timerWorker.value.postMessage({
           type: 'clearTimer',
-          msgId: timerMsgId
+          msgId: TIMER_MSG_ID
         })
-      }
-
-      if (audioMonitor.value) {
-        clearInterval(audioMonitor.value)
-        audioMonitor.value = null
       }
 
       // 如果有音频文件路径，立即处理并显示录音结果
@@ -150,21 +174,36 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
         // 读取录音文件
         const audioData = await readFile(audioPath)
 
-        // 获取原始音频信息
-        const originalInfo = await getAudioInfo(audioData.buffer as any)
-        console.log('原始音频信息:', {
-          duration: `${originalInfo.duration.toFixed(2)}秒`,
-          sampleRate: `${originalInfo.sampleRate}Hz`,
-          channels: originalInfo.channels,
-          size: `${(originalInfo.size / 1024 / 1024).toFixed(2)}MB`
-        })
+        // 获取原始音频信息（用于日志，但不依赖它的时长值）
+        let originalInfo
+        try {
+          originalInfo = await getAudioInfo(audioData.buffer)
+          console.log('原始音频信息:', {
+            duration: `${originalInfo.duration.toFixed(2)}秒`,
+            sampleRate: `${originalInfo.sampleRate}Hz`,
+            channels: originalInfo.channels,
+            size: `${(originalInfo.size / 1024 / 1024).toFixed(2)}MB`
+          })
+        } catch (infoError) {
+          console.warn('获取音频信息失败，使用前端计时:', infoError)
+          originalInfo = {
+            duration: duration,
+            sampleRate: 44100,
+            channels: 1,
+            size: audioData.byteLength
+          }
+        }
 
-        // 压缩音频为MP3格式
-        const compressedBlob = await compressAudioToMp3(audioData.buffer as any, {
-          channels: 1, // 单声道
-          sampleRate: 22050, // 降低采样率
-          bitRate: 64 // 较低比特率
-        })
+        // 压缩音频为MP3格式，传入前端计时的时长用于验证
+        const compressedBlob = await compressAudioToMp3(
+          audioData.buffer,
+          {
+            channels: 1, // 单声道
+            sampleRate: 22050, // 降低采样率
+            bitRate: 64 // 较低比特率
+          },
+          duration // 传入前端计时的时长用于验证
+        )
 
         // 计算压缩比
         const compressionRatio = calculateCompressionRatio(originalInfo.size, compressedBlob.size)
@@ -200,16 +239,11 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
       isRecording.value = false
 
       // 清理worker定时器
-      if (timerWorker) {
-        timerWorker.postMessage({
+      if (timerWorker.value) {
+        timerWorker.value.postMessage({
           type: 'clearTimer',
-          msgId: timerMsgId
+          msgId: TIMER_MSG_ID
         })
-      }
-
-      if (audioMonitor.value) {
-        clearInterval(audioMonitor.value)
-        audioMonitor.value = null
       }
       options.onError?.('停止录音失败')
     }
@@ -220,23 +254,28 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
     try {
       if (!isRecording.value) return
 
-      // 调用Rust后端停止录音，但不处理返回的音频文件
-      await stopRecording()
-      console.log('取消录音')
+      // 调用Rust后端停止录音，获取临时文件路径以便删除
+      const audioPath = await stopRecording()
+      console.log('取消录音，临时文件:', audioPath)
 
       isRecording.value = false
 
       // 清理worker定时器
-      if (timerWorker) {
-        timerWorker.postMessage({
+      if (timerWorker.value) {
+        timerWorker.value.postMessage({
           type: 'clearTimer',
-          msgId: timerMsgId
+          msgId: TIMER_MSG_ID
         })
       }
 
-      if (audioMonitor.value) {
-        clearInterval(audioMonitor.value)
-        audioMonitor.value = null
+      // 删除临时录音文件，避免资源泄露
+      if (audioPath) {
+        try {
+          await remove(audioPath)
+          console.log('已删除取消录音的临时文件:', audioPath)
+        } catch (deleteError) {
+          console.warn('删除临时录音文件失败:', deleteError)
+        }
       }
     } catch (error) {
       console.error('取消录音失败:', error)
@@ -308,13 +347,13 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
   onUnmounted(() => {
     cancelRecordingAudio()
     // 清理worker
-    if (timerWorker) {
-      timerWorker.postMessage({
+    if (timerWorker.value) {
+      timerWorker.value.postMessage({
         type: 'clearTimer',
-        msgId: timerMsgId
+        msgId: TIMER_MSG_ID
       })
-      timerWorker.terminate()
-      timerWorker = null
+      timerWorker.value.terminate()
+      timerWorker.value = null
     }
   })
 
