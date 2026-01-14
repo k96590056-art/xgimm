@@ -78,10 +78,24 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
       }
 
       // 调用 Rust 后端开始录音
-      console.log('[VoiceRecord] 调用 Rust startRecording...')
-      await startRecording()
-      console.log('[VoiceRecord] Rust startRecording 成功')
+      // 对于华为荣耀等设备，即使抛出异常，录音可能已经开始了
+      // 所以使用 try-catch 包裹，但即使有异常也继续执行后续逻辑
+      let recordingStarted = false
+      try {
+        console.log('[VoiceRecord] 调用 Rust startRecording...')
+        await startRecording()
+        console.log('[VoiceRecord] Rust startRecording 成功')
+        recordingStarted = true
+      } catch (recordingError: any) {
+        console.warn('[VoiceRecord] Rust startRecording 抛出异常，但可能已开始录音:', recordingError?.message || recordingError)
+        // 对于某些设备（如华为荣耀），即使抛出异常，录音可能已经开始了
+        // 延迟检查，给设备一些时间完成初始化
+        await new Promise(resolve => setTimeout(resolve, 100))
+        // 假设录音已开始，继续执行后续逻辑
+        recordingStarted = true
+      }
 
+      // 设置录音状态（即使有异常也设置，因为录音可能已经开始了）
       isRecording.value = true
       startTime.value = Date.now()
       recordingTime.value = 0
@@ -132,13 +146,17 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
       options.onStart?.()
       console.log('[VoiceRecord] 录音已开始')
     } catch (error: any) {
-      console.error('[VoiceRecord] 开始录音出错:', error?.message || error)
+      console.error('[VoiceRecord] 开始录音流程出错:', error?.message || error)
 
       // 只有在录音确实没有开始时才显示错误
       // 检查 isRecording 状态来判断
       if (!isRecording.value) {
         window.$message?.error('录音失败，请检查麦克风权限')
         options.onError?.('录音失败')
+      } else {
+        // 如果录音状态已经是 true，说明录音可能已经开始了，只是其他步骤出错
+        // 不显示错误，让用户继续使用
+        console.log('[VoiceRecord] 录音状态已为 true，继续录音流程')
       }
     }
   }
@@ -147,18 +165,30 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
   const stopRecordingAudio = async () => {
     console.log('[VoiceRecord] ========== 停止录音流程 ==========')
     try {
-      if (!isRecording.value) {
-        console.log('[VoiceRecord] 未在录音中，直接返回')
-        return
+      // 对于华为荣耀等设备，即使 isRecording.value 是 false，录音可能实际上在进行
+      // 所以即使状态不一致，也尝试停止录音
+      const wasRecording = isRecording.value
+      if (!wasRecording) {
+        console.log('[VoiceRecord] 状态显示未在录音中，但尝试停止录音（兼容华为荣耀等设备）')
       }
 
       // 调用Rust后端停止录音
+      // 即使状态不一致也尝试停止，确保录音能被正确停止
       console.log('[VoiceRecord] 调用 Rust stopRecording...')
-      const audioPath = await stopRecording()
-      console.log('[VoiceRecord] Rust stopRecording 返回路径:', audioPath)
+      let audioPath: string | null = null
+      try {
+        audioPath = await stopRecording()
+        console.log('[VoiceRecord] Rust stopRecording 返回路径:', audioPath)
+      } catch (stopError: any) {
+        console.warn('[VoiceRecord] Rust stopRecording 出错，但可能已停止:', stopError?.message || stopError)
+        // 即使出错，也继续处理，因为录音可能已经停止了
+      }
 
+      // 更新录音状态
       isRecording.value = false
-      const duration = (Date.now() - startTime.value) / 1000
+      
+      // 计算录音时长（如果 startTime 有效）
+      const duration = startTime.value > 0 ? (Date.now() - startTime.value) / 1000 : 0
       console.log('[VoiceRecord] 录音时长:', duration, '秒')
 
       // 清理worker定时器
@@ -167,6 +197,17 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
           type: 'clearTimer',
           msgId: TIMER_MSG_ID
         })
+      }
+
+      // 如果没有音频路径，说明录音可能没有真正开始，或者已经失败
+      if (!audioPath) {
+        console.warn('[VoiceRecord] 未获取到音频路径，录音可能未成功')
+        // 如果之前状态显示在录音，但现在没有音频路径，可能是录音失败
+        if (wasRecording) {
+          window.$message?.error('录音失败，未获取到音频文件')
+          options.onError?.('录音失败')
+        }
+        return
       }
 
       // 如果有音频文件路径，立即处理并显示录音结果
