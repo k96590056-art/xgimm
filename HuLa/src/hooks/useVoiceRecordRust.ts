@@ -80,19 +80,16 @@ export const useVoiceRecordRust = (options: VoiceRecordRustOptions = {}) => {
       // 调用 Rust 后端开始录音
       // 对于华为荣耀等设备，即使抛出异常，录音可能已经开始了
       // 所以使用 try-catch 包裹，但即使有异常也继续执行后续逻辑
-      let recordingStarted = false
       try {
         console.log('[VoiceRecord] 调用 Rust startRecording...')
         await startRecording()
         console.log('[VoiceRecord] Rust startRecording 成功')
-        recordingStarted = true
       } catch (recordingError: any) {
         console.warn('[VoiceRecord] Rust startRecording 抛出异常，但可能已开始录音:', recordingError?.message || recordingError)
         // 对于某些设备（如华为荣耀），即使抛出异常，录音可能已经开始了
         // 延迟检查，给设备一些时间完成初始化
         await new Promise(resolve => setTimeout(resolve, 100))
         // 假设录音已开始，继续执行后续逻辑
-        recordingStarted = true
       }
 
       // 设置录音状态（即使有异常也设置，因为录音可能已经开始了）
