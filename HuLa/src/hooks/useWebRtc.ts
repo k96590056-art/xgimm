@@ -51,9 +51,9 @@ export interface WSRtcCallMsg {
 const MAX_TIME_OUT_SECONDS = 30
 let configuration: RTCConfiguration = {
   iceServers: [
-    { urls: 'stun:117.72.67.248:3478' },
+    { urls: 'stun:154.201.89.241:3478' },
     {
-      urls: ['turn:117.72.67.248:3478?transport=udp', 'turn:117.72.67.248:3478?transport=tcp'],
+      urls: ['turn:154.201.89.241:3478?transport=udp', 'turn:154.201.89.241:3478?transport=tcp'],
       username: 'chr',
       credential: '123456'
     }
