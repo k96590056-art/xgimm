@@ -18,8 +18,8 @@ import java.time.Duration;
 @Slf4j
 @Component
 public class ReactiveWebSocketHandler implements WebSocketHandler {
-	// 心跳超时时间（秒）
-	public static final long HEARTBEAT_TIMEOUT = 30;
+	// 心跳超时时间（秒）- 增加到60秒以适应移动端后台限制
+	public static final long HEARTBEAT_TIMEOUT = 60;
 	// 自定义连接超市状态码
 	public static final CloseStatus SESSION_NOT_RELIABLE = new CloseStatus(4000, "会话关闭");
 

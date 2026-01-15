@@ -131,6 +131,9 @@
         </n-flex>
       </n-flex>
 
+      <!-- 注册占位 - 与登录头像保持相同高度 -->
+      <div v-if="activeTab === 'register'" class="size-86px"></div>
+
       <!-- 注册表单 - 第一步：昵称和密码 -->
       <n-flex v-if="activeTab === 'register' && currentStep === 1" class="text-center w-80%" vertical :size="16">
         <n-input
